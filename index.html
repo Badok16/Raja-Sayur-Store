@@ -723,6 +723,49 @@
             color: #155724;
         }
 
+        /* Typing Indicator */
+        .typing-indicator .chat-bubble {
+            background: #f1f1f1;
+            color: #333;
+            border-top-left-radius: 0;
+            padding: 10px 15px;
+            display: inline-block;
+        }
+        
+        .typing-dots {
+            display: flex;
+            align-items: center;
+        }
+        
+        .typing-dots span {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            background-color: #999;
+            display: inline-block;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .hero h1 {
@@ -1218,8 +1261,8 @@
                     </div>
                     <div class="col-md-4">
                         <h5>Kontak Kami</h5>
-                        <p><i class="fas fa-map-marker-alt me-2"></i>Jln.Merdeka utara No.6, Desa Padamara</p>
-                        <p><i class="fas fa-phone me-2"></i>087765288045</p>
+                        <p><i class="fas fa-map-marker-alt me-2"></i>Jl. Contoh No. 123, Jakarta</p>
+                        <p><i class="fas fa-phone me-2"></i>(021) 12345678</p>
                         <p><i class="fas fa-envelope me-2"></i>info@rajasayur.com</p>
                     </div>
                 </div>
@@ -1512,4 +1555,1578 @@
         window.firebaseAvailable = true;
         window.collection = collection;
         window.getDocs = getDocs;
-        window.addDoc = addDoc
+        window.addDoc = addDoc;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.onSnapshot = onSnapshot;
+        
+        console.log("Firebase initialized successfully");
+    </script>
+    
+    <script>
+        // Variabel global untuk Firebase
+        let db = null;
+        let auth = null;
+        let firebaseAvailable = false;
+        let collection, getDocs, addDoc, doc, setDoc, onSnapshot;
+
+        // Variabel global untuk status admin
+        let adminOnline = false;
+        let lastAdminActivity = new Date().getTime();
+
+        // Variabel global untuk typing indicator
+        let typingIndicators = {};
+
+        // Cek apakah Firebase sudah diinisialisasi dari module
+        if (window.db && window.auth) {
+            db = window.db;
+            auth = window.auth;
+            firebaseAvailable = window.firebaseAvailable;
+            collection = window.collection;
+            getDocs = window.getDocs;
+            addDoc = window.addDoc;
+            doc = window.doc;
+            setDoc = window.setDoc;
+            onSnapshot = window.onSnapshot;
+            console.log("Firebase loaded from module");
+        } else {
+            console.error("Firebase not loaded from module");
+            firebaseAvailable = false;
+        }
+
+        // Data produk
+        const products = [
+            {
+                id: 1,
+                name: "Tomat Segar",
+                category: "sayuran",
+                price: 15000,
+                stock: 50,
+                image: "https://images.unsplash.com/photo-1512926584220-7c693e6533d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+                description: "Tomat segar berkualitas tinggi, langsung dari petani."
+            },
+            {
+                id: 2,
+                name: "Wortel Organik",
+                category: "organik",
+                price: 12000,
+                stock: 40,
+                image: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+                description: "Wortel organik tanpa pestisida, kaya akan vitamin A."
+            },
+            {
+                id: 3,
+                name: "Bawang Merah",
+                category: "bumbu",
+                price: 25000,
+                stock: 30,
+                image: "https://images.unsplash.com/photo-1602877306277-4e0a9d70c6e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+                description: "Bawang merah pilihan untuk masakan lezat."
+            },
+            {
+                id: 4,
+                name: "Bayam Premium",
+                category: "premium",
+                price: 10000,
+                stock: 25,
+                image: "https://images.unsplash.com/photo-1576042758248-4b703f7f0d5a?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+                description: "Bayam premium segar, kaya akan nutrisi."
+            },
+            {
+                id: 5,
+                name: "Cabai Merah",
+                category: "bumbu",
+                price: 30000,
+                stock: 20,
+                image: "https://images.unsplash.com/photo-1594736797933-d0eb1ff2e2d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+                description: "Cabai merah pedas, cocok untuk berbagai masakan."
+            },
+            {
+                id: 6,
+                name: "Brokoli Organik",
+                category: "organik",
+                price: 20000,
+                stock: 15,
+                image: "https://images.unsplash.com/photo-1519162584292-56dfc9eb5db4?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+                description: "Brokoli organik segar, tinggi serat dan vitamin C."
+            }
+        ];
+
+        // Data keranjang
+        let cart = [];
+
+        // Data pengguna
+        let users = [
+            {
+                id: 1,
+                name: "Admin User",
+                email: "admin@rajasayur.com",
+                password: "admin123",
+                isAdmin: true
+            },
+            {
+                id: 2,
+                name: "Test User",
+                email: "user@example.com",
+                password: "user123",
+                isAdmin: false
+            }
+        ];
+
+        // Data pesanan
+        let orders = [];
+
+        // Data pengguna yang sedang login
+        let currentUser = null;
+
+        // Data chat
+        let chatUsers = [];
+        let chatMessages = {};
+        let currentChatUser = null;
+        let chatUser = null;
+
+        // Inisialisasi halaman
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tampilkan produk unggulan di halaman beranda
+            displayFeaturedProducts();
+            
+            // Perbarui jumlah keranjang
+            updateCartCount();
+            
+            // Cek apakah ada pengguna yang tersimpan di localStorage
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+            }
+            
+            // Load data pesanan
+            loadOrdersData();
+            
+            // Load data chat
+            loadChatData();
+            
+            // Setup listeners untuk real-time updates jika Firebase tersedia
+            if (firebaseAvailable) {
+                setupChatListeners();
+                setupOrderListeners();
+                setupAdminStatusListener();
+                setupTypingStatusListeners();
+                
+                // Cek status admin setiap 30 detik
+                setInterval(checkAdminStatus, 30000);
+                
+                // Update status admin saat admin aktif
+                if (document.getElementById('admin-panel').style.display !== 'none') {
+                    updateAdminStatus();
+                    
+                    // Update status setiap ada aktivitas admin
+                    document.addEventListener('click', function() {
+                        if (document.getElementById('admin-panel').style.display !== 'none') {
+                            updateAdminStatus();
+                        }
+                    });
+                    
+                    document.addEventListener('keypress', function() {
+                        if (document.getElementById('admin-panel').style.display !== 'none') {
+                            updateAdminStatus();
+                        }
+                    });
+                }
+            }
+            
+            // Cek apakah widget chat sudah dibuka sebelumnya
+            const chatOpened = localStorage.getItem('chatOpened');
+            if (chatOpened === 'true') {
+                document.getElementById('chat-widget').classList.add('opened');
+                document.getElementById('chat-toggle-icon').classList.replace('fa-chevron-down', 'fa-chevron-up');
+            }
+            
+            // Update chat notification
+            updateChatNotification();
+            
+            // Set interval untuk memeriksa pesan baru setiap 2 detik
+            setInterval(checkNewMessages, 2000);
+            
+            // Request notification permission
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        });
+
+        // Fungsi untuk memuat data pesanan
+        function loadOrdersData() {
+            if (firebaseAvailable && db) {
+                // Gunakan Firebase
+                getDocs(collection(db, 'orders')).then(snapshot => {
+                    orders = [];
+                    snapshot.forEach(doc => {
+                        orders.push(doc.data());
+                    });
+                }).catch(error => {
+                    console.error('Error loading orders from Firebase:', error);
+                    // Fallback ke localStorage
+                    loadOrdersFromLocalStorage();
+                });
+            } else {
+                // Gunakan localStorage
+                loadOrdersFromLocalStorage();
+            }
+        }
+
+        // Fungsi untuk memuat data pesanan dari localStorage
+        function loadOrdersFromLocalStorage() {
+            const savedOrders = localStorage.getItem('orders');
+            if (savedOrders) {
+                try {
+                    orders = JSON.parse(savedOrders);
+                } catch (error) {
+                    console.error('Error parsing orders from localStorage:', error);
+                    orders = [];
+                }
+            }
+        }
+
+        // Fungsi untuk menyimpan data pesanan
+        function saveOrdersData() {
+            if (firebaseAvailable && db) {
+                // Gunakan Firebase
+                orders.forEach(order => {
+                    setDoc(doc(db, 'orders', order.id.toString()), order)
+                        .catch(error => {
+                            console.error('Error saving order to Firebase:', error);
+                        });
+                });
+            }
+            
+            // Selalu simpan ke localStorage sebagai backup
+            localStorage.setItem('orders', JSON.stringify(orders));
+        }
+
+        // Fungsi untuk memuat data chat
+        function loadChatData() {
+            if (firebaseAvailable && db) {
+                // Gunakan Firebase
+                // Muat chat users
+                getDocs(collection(db, 'chatUsers')).then(snapshot => {
+                    chatUsers = [];
+                    snapshot.forEach(doc => {
+                        chatUsers.push(doc.data());
+                    });
+                }).catch(error => {
+                    console.error('Error loading chat users from Firebase:', error);
+                    // Fallback ke localStorage
+                    loadChatFromLocalStorage();
+                });
+                
+                // Muat chat messages
+                getDocs(collection(db, 'chatMessages')).then(snapshot => {
+                    chatMessages = {};
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        chatMessages[doc.id] = data.messages;
+                    });
+                }).catch(error => {
+                    console.error('Error loading chat messages from Firebase:', error);
+                    // Fallback ke localStorage
+                    loadChatFromLocalStorage();
+                });
+            } else {
+                // Gunakan localStorage
+                loadChatFromLocalStorage();
+            }
+        }
+
+        // Fungsi untuk memuat data chat dari localStorage
+        function loadChatFromLocalStorage() {
+            try {
+                const savedChatUsers = localStorage.getItem('chatUsers');
+                const savedChatMessages = localStorage.getItem('chatMessages');
+                
+                if (savedChatUsers) {
+                    chatUsers = JSON.parse(savedChatUsers);
+                }
+                
+                if (savedChatMessages) {
+                    chatMessages = JSON.parse(savedChatMessages);
+                }
+            } catch (error) {
+                console.error('Error parsing chat data from localStorage:', error);
+                chatUsers = [];
+                chatMessages = {};
+            }
+        }
+
+        // Fungsi untuk menyimpan data chat
+        function saveChatData() {
+            if (firebaseAvailable && db) {
+                // Gunakan Firebase
+                // Simpan chat users
+                chatUsers.forEach(user => {
+                    setDoc(doc(db, 'chatUsers', user.id.toString()), user)
+                        .catch(error => {
+                            console.error('Error saving chat user to Firebase:', error);
+                        });
+                });
+                
+                // Simpan chat messages
+                Object.keys(chatMessages).forEach(userId => {
+                    setDoc(doc(db, 'chatMessages', userId), {
+                        messages: chatMessages[userId]
+                    }).catch(error => {
+                        console.error('Error saving chat messages to Firebase:', error);
+                    });
+                });
+            }
+            
+            // Selalu simpan ke localStorage sebagai backup
+            localStorage.setItem('chatUsers', JSON.stringify(chatUsers));
+            localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+        }
+
+        // Setup listeners untuk real-time updates
+        function setupChatListeners() {
+            if (!firebaseAvailable || !db) return;
+            
+            try {
+                // Listener untuk chat messages
+                onSnapshot(collection(db, 'chatMessages'), (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const data = change.doc.data();
+                            chatMessages[change.doc.id] = data.messages;
+                            
+                            // Cek apakah ada pesan baru dari user
+                            const lastMessage = data.messages[data.messages.length - 1];
+                            if (lastMessage && lastMessage.sender === 'user' && !lastMessage.isAutoResponse) {
+                                // Cari informasi user
+                                const user = chatUsers.find(u => u.id == change.doc.id);
+                                if (user) {
+                                    // Tampilkan notifikasi browser
+                                    showBrowserNotification(
+                                        "Pesan Baru dari " + user.name,
+                                        lastMessage.text,
+                                        "https://badok16.github.io/Raja-Sayur-Store/favicon.ico"
+                                    );
+                                    
+                                    // Update notifikasi di UI
+                                    updateChatNotification();
+                                }
+                            }
+                            
+                            // Update UI jika perlu
+                            if (document.getElementById('admin-panel').style.display !== 'none') {
+                                displayAdminChat();
+                            }
+                            
+                            // Update chat widget jika pengguna sedang aktif
+                            if (chatUser && chatUser.id == change.doc.id) {
+                                loadChatMessages(chatUser.id);
+                            }
+                        }
+                    });
+                });
+                
+                console.log("Chat listeners setup successfully");
+            } catch (error) {
+                console.error('Error setting up chat listeners:', error);
+            }
+        }
+
+        function setupOrderListeners() {
+            if (!firebaseAvailable || !db) return;
+            
+            try {
+                // Listener untuk orders
+                onSnapshot(collection(db, 'orders'), (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const order = change.doc.data();
+                            
+                            // Cek apakah order sudah ada di array
+                            const existingIndex = orders.findIndex(o => o.id === order.id);
+                            if (existingIndex === -1) {
+                                orders.push(order);
+                                
+                                // Tampilkan notifikasi browser
+                                showBrowserNotification(
+                                    "Pesanan Baru #" + order.id,
+                                    "Pelanggan: " + order.customerName + ", Total: Rp " + order.total.toLocaleString('id-ID'),
+                                    "https://badok16.github.io/Raja-Sayur-Store/favicon.ico"
+                                );
+                            }
+                            
+                            // Update UI jika perlu
+                            if (document.getElementById('admin-panel').style.display !== 'none') {
+                                updateAdminDashboard();
+                                displayAdminOrders();
+                            }
+                            
+                            // Update order list jika pengguna sedang melihat pesanan
+                            if (document.getElementById('orders-page').classList.contains('d-none') === false) {
+                                displayOrders();
+                            }
+                        } else if (change.type === 'modified') {
+                            const order = change.doc.data();
+                            const index = orders.findIndex(o => o.id === order.id);
+                            if (index !== -1) {
+                                orders[index] = order;
+                                
+                                // Tampilkan notifikasi untuk perubahan status
+                                if (orders[index].status !== order.status) {
+                                    showBrowserNotification(
+                                        "Update Pesanan #" + order.id,
+                                        "Status diubah menjadi: " + getStatusText(order.status),
+                                        "https://badok16.github.io/Raja-Sayur-Store/favicon.ico"
+                                    );
+                                }
+                                
+                                // Update UI jika perlu
+                                if (document.getElementById('admin-panel').style.display !== 'none') {
+                                    displayAdminOrders();
+                                }
+                                
+                                // Update order detail jika sedang dilihat
+                                if (document.getElementById('order-detail-page').classList.contains('d-none') === false) {
+                                    const orderId = parseInt(document.getElementById('order-detail-number').textContent.replace('#', ''));
+                                    if (orderId === order.id) {
+                                        showOrderDetail(orderId);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+                
+                console.log("Order listeners setup successfully");
+            } catch (error) {
+                console.error('Error setting up order listeners:', error);
+            }
+        }
+
+        // Fungsi untuk menampilkan notifikasi di browser
+        function showBrowserNotification(title, body, icon) {
+            if (!("Notification" in window)) {
+                console.log("Browser tidak mendukung notifikasi");
+                return;
+            }
+            
+            if (Notification.permission === "granted") {
+                const notification = new Notification(title, {
+                    body: body,
+                    icon: icon || "https://badok16.github.io/Raja-Sayur-Store/favicon.ico"
+                });
+                
+                notification.onclick = function() {
+                    window.focus();
+                    notification.close();
+                    
+                    // Buka halaman admin jika belum dibuka
+                    if (document.getElementById('admin-panel').style.display === 'none') {
+                        showAdminLogin();
+                    }
+                    
+                    // Buka halaman chat
+                    showAdminPage('chat');
+                };
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(function (permission) {
+                    if (permission === "granted") {
+                        showBrowserNotification(title, body, icon);
+                    }
+                });
+            }
+        }
+
+        // Fungsi helper untuk mendapatkan teks status
+        function getStatusText(status) {
+            switch (status) {
+                case 'processing':
+                    return 'Sedang Diproses';
+                case 'shipping':
+                    return 'Sedang Dikirim';
+                case 'completed':
+                    return 'Selesai';
+                default:
+                    return status;
+            }
+        }
+
+        // Fungsi untuk memperbarui status admin
+        function updateAdminStatus() {
+            if (!firebaseAvailable || !db) return;
+            
+            try {
+                // Update status admin menjadi online
+                adminOnline = true;
+                lastAdminActivity = new Date().getTime();
+                
+                // Simpan status admin ke Firebase
+                setDoc(doc(db, 'adminStatus', 'status'), {
+                    online: adminOnline,
+                    lastActivity: lastAdminActivity
+                }).catch(error => {
+                    console.error('Error updating admin status:', error);
+                });
+                
+                console.log("Admin status updated to online");
+            } catch (error) {
+                console.error('Error updating admin status:', error);
+            }
+        }
+
+        // Fungsi untuk mengecek status admin
+        function checkAdminStatus() {
+            if (!firebaseAvailable || !db) return;
+            
+            try {
+                // Ambil status admin dari Firebase
+                getDoc(doc(db, 'adminStatus', 'status')).then(doc => {
+                    if (doc.exists()) {
+                        const data = doc.data();
+                        adminOnline = data.online;
+                        lastAdminActivity = data.lastActivity;
+                        
+                        // Cek apakah admin masih aktif (aktif dalam 5 menit terakhir)
+                        const now = new Date().getTime();
+                        const fiveMinutes = 5 * 60 * 1000;
+                        
+                        if (now - lastAdminActivity > fiveMinutes) {
+                            adminOnline = false;
+                        }
+                        
+                        // Update UI
+                        updateAdminStatusUI();
+                    }
+                }).catch(error => {
+                    console.error('Error checking admin status:', error);
+                });
+            } catch (error) {
+                console.error('Error checking admin status:', error);
+            }
+        }
+
+        // Fungsi untuk memperbarui UI status admin
+        function updateAdminStatusUI() {
+            const statusElement = document.getElementById('admin-chat-user-status');
+            if (statusElement) {
+                if (adminOnline) {
+                    statusElement.textContent = 'Online';
+                    statusElement.classList.remove('text-danger');
+                    statusElement.classList.add('text-success');
+                } else {
+                    statusElement.textContent = 'Offline';
+                    statusElement.classList.remove('text-success');
+                    statusElement.classList.add('text-danger');
+                }
+            }
+        }
+
+        // Setup listener untuk status admin
+        function setupAdminStatusListener() {
+            if (!firebaseAvailable || !db) return;
+            
+            try {
+                onSnapshot(doc(db, 'adminStatus', 'status'), (doc) => {
+                    if (doc.exists()) {
+                        const data = doc.data();
+                        adminOnline = data.online;
+                        lastAdminActivity = data.lastActivity;
+                        
+                        // Update UI
+                        updateAdminStatusUI();
+                    }
+                });
+                
+                console.log("Admin status listener setup successfully");
+            } catch (error) {
+                console.error('Error setting up admin status listener:', error);
+            }
+        }
+
+        // Fungsi untuk menampilkan indikator mengetik
+        function showTypingIndicator(userId, isTyping) {
+            typingIndicators[userId] = isTyping;
+            
+            if (chatUser && chatUser.id === userId) {
+                const chatBody = document.getElementById('chat-body');
+                
+                // Cek apakah sudah ada indikator mengetik
+                let typingIndicator = document.getElementById('typing-indicator');
+                
+                if (isTyping && !typingIndicator) {
+                    // Buat indikator mengetik
+                    typingIndicator = document.createElement('div');
+                    typingIndicator.id = 'typing-indicator';
+                    typingIndicator.className = 'chat-message admin typing-indicator';
+                    typingIndicator.innerHTML = `
+                        <div class="chat-bubble">
+                            <div class="typing-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    chatBody.appendChild(typingIndicator);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                } else if (!isTyping && typingIndicator) {
+                    // Hapus indikator mengetik
+                    chatBody.removeChild(typingIndicator);
+                }
+            }
+            
+            if (currentChatUser && currentChatUser.id === userId) {
+                const adminChatMessages = document.getElementById('admin-chat-messages');
+                
+                // Cek apakah sudah ada indikator mengetik
+                let typingIndicator = document.getElementById('admin-typing-indicator');
+                
+                if (isTyping && !typingIndicator) {
+                    // Buat indikator mengetik
+                    typingIndicator = document.createElement('div');
+                    typingIndicator.id = 'admin-typing-indicator';
+                    typingIndicator.className = 'chat-message user typing-indicator';
+                    typingIndicator.innerHTML = `
+                        <div class="chat-bubble">
+                            <div class="typing-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    adminChatMessages.appendChild(typingIndicator);
+                    adminChatMessages.scrollTop = adminChatMessages.scrollHeight;
+                } else if (!isTyping && typingIndicator) {
+                    // Hapus indikator mengetik
+                    adminChatMessages.removeChild(typingIndicator);
+                }
+            }
+        }
+
+        // Setup listener untuk typing status
+        function setupTypingStatusListeners() {
+            if (!firebaseAvailable || !db) return;
+            
+            try {
+                // Listener untuk typing status
+                onSnapshot(collection(db, 'typingStatus'), (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added' || change.type === 'modified') {
+                            const data = change.doc.data();
+                            const userId = change.doc.id;
+                            
+                            // Cek apakah status masih valid (kurang dari 5 detik)
+                            const now = new Date().getTime();
+                            const fiveSeconds = 5 * 1000;
+                            
+                            if (now - data.timestamp < fiveSeconds) {
+                                // Tampilkan indikator mengetik
+                                showTypingIndicator(userId, data.isTyping);
+                            } else {
+                                // Sembunyikan indikator mengetik
+                                showTypingIndicator(userId, false);
+                            }
+                        }
+                    });
+                });
+                
+                console.log("Typing status listeners setup successfully");
+            } catch (error) {
+                console.error('Error setting up typing status listeners:', error);
+            }
+        }
+
+        // Fungsi untuk mengecek apakah admin sedang aktif
+        function isAdminActive() {
+            // Logika untuk mengecek apakah admin sedang online
+            // Untuk sekarang, kita asumsikan admin selalu aktif
+            return true;
+        }
+
+        // Fungsi untuk mengirim auto-response
+        function sendAutoResponse(userId) {
+            const responses = [
+                "Terima kasih telah menghubungi kami. Admin akan segera merespons pesan Anda.",
+                "Pesan Anda telah kami terima. Mohon tunggu beberapa saat untuk respons dari admin.",
+                "Terima kasih atas pesan Anda. Tim kami akan segera membantu Anda."
+            ];
+            
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            
+            const message = {
+                text: randomResponse,
+                sender: 'admin',
+                timestamp: new Date().toISOString(),
+                isAutoResponse: true
+            };
+            
+            // Add to messages
+            if (!chatMessages[userId]) {
+                chatMessages[userId] = [];
+            }
+            
+            chatMessages[userId].push(message);
+            
+            // Save data
+            saveChatData();
+            
+            // Reload messages if this user is currently active
+            if (chatUser && chatUser.id === userId) {
+                loadChatMessages(userId);
+            }
+            
+            // Update admin chat notification
+            updateChatNotification();
+        }
+
+        // Fungsi untuk menampilkan halaman
+        function showPage(pageId) {
+            // Sembunyikan semua halaman
+            const pages = document.querySelectorAll('section');
+            pages.forEach(page => {
+                page.classList.add('d-none');
+            });
+            
+            // Tampilkan halaman yang dipilih
+            const selectedPage = document.getElementById(`${pageId}-page`);
+            if (selectedPage) {
+                selectedPage.classList.remove('d-none');
+            } else if (pageId === 'home') {
+                document.getElementById('home-page').classList.remove('d-none');
+            }
+            
+            // Jika halaman produk, tampilkan semua produk
+            if (pageId === 'products') {
+                displayAllProducts();
+            }
+            
+            // Jika halaman keranjang, tampilkan isi keranjang
+            if (pageId === 'cart') {
+                displayCart();
+            }
+            
+            // Jika halaman pesanan, tampilkan daftar pesanan
+            if (pageId === 'orders') {
+                displayOrders();
+            }
+        }
+
+        // Fungsi untuk menampilkan produk unggulan
+        function displayFeaturedProducts() {
+            const featuredProductsContainer = document.getElementById('featured-products');
+            featuredProductsContainer.innerHTML = '';
+            
+            // Ambil 4 produk pertama sebagai produk unggulan
+            const featuredProducts = products.slice(0, 4);
+            
+            featuredProducts.forEach(product => {
+                const productCard = createProductCard(product);
+                featuredProductsContainer.appendChild(productCard);
+            });
+        }
+
+        // Fungsi untuk menampilkan semua produk
+        function displayAllProducts() {
+            const productsContainer = document.getElementById('products-container');
+            productsContainer.innerHTML = '';
+            
+            products.forEach(product => {
+                const productCard = createProductCard(product);
+                productsContainer.appendChild(productCard);
+            });
+        }
+
+        // Fungsi untuk membuat kartu produk
+        function createProductCard(product) {
+            const col = document.createElement('div');
+            col.className = 'col-md-4 col-sm-6 mb-4';
+            
+            const card = document.createElement('div');
+            card.className = 'card product-card';
+            
+            const img = document.createElement('img');
+            img.className = 'card-img-top';
+            img.src = product.image;
+            img.alt = product.name;
+            
+            const cardBody = document.createElement('div');
+            cardBody.className = 'card-body';
+            
+            const title = document.createElement('h5');
+            title.className = 'card-title';
+            title.textContent = product.name;
+            
+            const description = document.createElement('p');
+            description.className = 'card-text';
+            description.textContent = product.description;
+            
+            const price = document.createElement('div');
+            price.className = 'product-price';
+            price.textContent = `Rp ${product.price.toLocaleString('id-ID')}`;
+            
+            const button = document.createElement('button');
+            button.className = 'btn btn-primary';
+            button.textContent = 'Tambah ke Keranjang';
+            button.onclick = function() {
+                addToCartFromCard(product);
+            };
+            
+            cardBody.appendChild(title);
+            cardBody.appendChild(description);
+            cardBody.appendChild(price);
+            cardBody.appendChild(button);
+            
+            card.appendChild(img);
+            card.appendChild(cardBody);
+            
+            col.appendChild(card);
+            
+            return col;
+        }
+
+        // Fungsi untuk menambah produk ke keranjang dari kartu
+        function addToCartFromCard(product) {
+            const existingItem = cart.find(item => item.id === product.id);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    image: product.image,
+                    quantity: 1
+                });
+            }
+            
+            updateCartCount();
+            
+            // Tampilkan notifikasi
+            showNotification('Produk berhasil ditambahkan ke keranjang!');
+        }
+
+        // Fungsi untuk memperbarui jumlah keranjang
+        function updateCartCount() {
+            const cartCount = document.getElementById('cart-count');
+            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+            cartCount.textContent = totalItems;
+        }
+
+        // Fungsi untuk menampilkan keranjang
+        function displayCart() {
+            const cartContainer = document.getElementById('cart-container');
+            cartContainer.innerHTML = '';
+            
+            if (cart.length === 0) {
+                cartContainer.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-shopping-cart" style="font-size: 3rem; color: #ccc;"></i>
+                        <h3 class="mt-3">Keranjang Belanja Kosong</h3>
+                        <p class="text-muted">Tambahkan produk ke keranjang Anda</p>
+                        <a href="#" class="btn btn-primary" onclick="showPage('products')">Belanja Sekarang</a>
+                    </div>
+                `;
+                return;
+            }
+            
+            const table = document.createElement('table');
+            table.className = 'cart-table';
+            
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>Produk</th>
+                    <th>Harga</th>
+                    <th>Jumlah</th>
+                    <th>Total</th>
+                    <th>Aksi</th>
+                </tr>
+            `;
+            
+            const tbody = document.createElement('tbody');
+            
+            let grandTotal = 0;
+            
+            cart.forEach(item => {
+                const total = item.price * item.quantity;
+                grandTotal += total;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <img src="${item.image}" alt="${item.name}" class="me-3">
+                            <div>
+                                <h6>${item.name}</h6>
+                            </div>
+                        </div>
+                    </td>
+                    <td>Rp ${item.price.toLocaleString('id-ID')}</td>
+                    <td>
+                        <div class="quantity-control">
+                            <button onclick="updateCartItemQuantity(${item.id}, -1)">-</button>
+                            <input type="number" value="${item.quantity}" min="1" readonly>
+                            <button onclick="updateCartItemQuantity(${item.id}, 1)">+</button>
+                        </div>
+                    </td>
+                    <td>Rp ${total.toLocaleString('id-ID')}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeFromCart(${item.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+            
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            
+            cartContainer.appendChild(table);
+            
+            const cartTotal = document.createElement('div');
+            cartTotal.className = 'cart-total';
+            cartTotal.innerHTML = `
+                <p>Total: <strong>Rp ${grandTotal.toLocaleString('id-ID')}</strong></p>
+            `;
+            
+            cartContainer.appendChild(cartTotal);
+            
+            const checkoutButton = document.createElement('div');
+            checkoutButton.className = 'text-center mt-4';
+            checkoutButton.innerHTML = `
+                <button class="btn btn-primary btn-lg" onclick="proceedToCheckout()">Checkout</button>
+            `;
+            
+            cartContainer.appendChild(checkoutButton);
+        }
+
+        // Fungsi untuk memperbarui jumlah item di keranjang
+        function updateCartItemQuantity(productId, change) {
+            const item = cart.find(item => item.id === productId);
+            
+            if (item) {
+                item.quantity += change;
+                
+                if (item.quantity <= 0) {
+                    removeFromCart(productId);
+                } else {
+                    updateCartCount();
+                    displayCart();
+                }
+            }
+        }
+
+        // Fungsi untuk menghapus item dari keranjang
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id !== productId);
+            updateCartCount();
+            displayCart();
+            showNotification('Produk berhasil dihapus dari keranjang!');
+        }
+
+        // Fungsi untuk melanjutkan ke checkout
+        function proceedToCheckout() {
+            if (cart.length === 0) {
+                showNotification('Keranjang belanja kosong!', 'error');
+                return;
+            }
+            
+            showPage('checkout');
+            displayOrderSummary();
+        }
+
+        // Fungsi untuk menampilkan ringkasan pesanan di checkout
+        function displayOrderSummary() {
+            const orderSummaryItems = document.getElementById('order-summary-items');
+            orderSummaryItems.innerHTML = '';
+            
+            let grandTotal = 0;
+            
+            cart.forEach(item => {
+                const total = item.price * item.quantity;
+                grandTotal += total;
+                
+                const orderItem = document.createElement('div');
+                orderItem.className = 'order-item';
+                orderItem.innerHTML = `
+                    <span>${item.name} x ${item.quantity}</span>
+                    <span>Rp ${total.toLocaleString('id-ID')}</span>
+                `;
+                
+                orderSummaryItems.appendChild(orderItem);
+            });
+            
+            document.getElementById('order-total-price').textContent = `Rp ${grandTotal.toLocaleString('id-ID')}`;
+        }
+
+        // Fungsi untuk melakukan pemesanan
+        function placeOrder() {
+            // Validasi form
+            const name = document.getElementById('checkout-name').value.trim();
+            const phone = document.getElementById('checkout-phone').value.trim();
+            const address = document.getElementById('checkout-address').value.trim();
+            const city = document.getElementById('checkout-city').value.trim();
+            
+            if (!name || !phone || !address || !city) {
+                showNotification('Harap lengkapi semua field yang diperlukan!', 'error');
+                return;
+            }
+            
+            // Hitung total
+            let grandTotal = 0;
+            cart.forEach(item => {
+                grandTotal += item.price * item.quantity;
+            });
+            
+            // Buat pesanan baru
+            const order = {
+                id: Date.now(),
+                customerName: name,
+                customerPhone: phone,
+                customerAddress: `${address}, ${city}`,
+                items: [...cart],
+                total: grandTotal,
+                paymentMethod: document.querySelector('input[name="payment-method"]:checked').value,
+                status: 'processing',
+                date: new Date().toISOString(),
+                statusHistory: [
+                    {
+                        status: 'order',
+                        timestamp: new Date().toISOString(),
+                        note: 'Pesanan diterima'
+                    }
+                ]
+            };
+            
+            // Tambahkan ke daftar pesanan
+            orders.push(order);
+            
+            // Simpan data
+            saveOrdersData();
+            
+            // Kosongkan keranjang
+            cart = [];
+            updateCartCount();
+            
+            // Tampilkan halaman sukses
+            document.getElementById('order-number').textContent = `#${order.id}`;
+            showPage('order-success');
+            
+            // Simulasi perubahan status pesanan
+            simulateOrderStatusChange(order.id);
+        }
+
+        // Fungsi untuk mensimulasikan perubahan status pesanan
+        function simulateOrderStatusChange(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Simulasi perubahan status setelah beberapa detik
+            setTimeout(() => {
+                order.status = 'processing';
+                order.statusHistory.push({
+                    status: 'processing',
+                    timestamp: new Date().toISOString(),
+                    note: 'Pesanan sedang diproses'
+                });
+                saveOrdersData();
+            }, 5000);
+            
+            setTimeout(() => {
+                order.status = 'shipping';
+                order.statusHistory.push({
+                    status: 'shipping',
+                    timestamp: new Date().toISOString(),
+                    note: 'Pesanan sedang dikirim'
+                });
+                saveOrdersData();
+            }, 10000);
+            
+            setTimeout(() => {
+                order.status = 'completed';
+                order.statusHistory.push({
+                    status: 'completed',
+                    timestamp: new Date().toISOString(),
+                    note: 'Pesanan selesai'
+                });
+                saveOrdersData();
+            }, 15000);
+        }
+
+        // Fungsi untuk menampilkan daftar pesanan
+        function displayOrders() {
+            const ordersContainer = document.getElementById('orders-container');
+            ordersContainer.innerHTML = '';
+            
+            if (orders.length === 0) {
+                ordersContainer.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-receipt" style="font-size: 3rem; color: #ccc;"></i>
+                        <h3 class="mt-3">Belum Ada Pesanan</h3>
+                        <p class="text-muted">Anda belum memiliki pesanan</p>
+                        <a href="#" class="btn btn-primary" onclick="showPage('products')">Belanja Sekarang</a>
+                    </div>
+                `;
+                return;
+            }
+            
+            orders.forEach(order => {
+                const orderCard = document.createElement('div');
+                orderCard.className = 'card mb-3';
+                
+                const statusClass = order.status === 'processing' ? 'processing' : 
+                                   order.status === 'shipping' ? 'shipping' : 'completed';
+                
+                const statusText = order.status === 'processing' ? 'Sedang Diproses' : 
+                                 order.status === 'shipping' ? 'Sedang Dikirim' : 'Selesai';
+                
+                orderCard.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="card-title">Pesanan #${order.id}</h5>
+                                <p class="card-text text-muted">${new Date(order.date).toLocaleDateString('id-ID')}</p>
+                            </div>
+                            <div>
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <p class="mb-0"><strong>Total:</strong> Rp ${order.total.toLocaleString('id-ID')}</p>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="showOrderDetail(${order.id})">
+                                    Lihat Detail
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                ordersContainer.appendChild(orderCard);
+            });
+        }
+
+        // Fungsi untuk menampilkan detail pesanan
+        function showOrderDetail(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Set data pesanan
+            document.getElementById('order-detail-number').textContent = `#${order.id}`;
+            document.getElementById('order-detail-date').textContent = new Date(order.date).toLocaleString('id-ID');
+            
+            const statusClass = order.status === 'processing' ? 'processing' : 
+                               order.status === 'shipping' ? 'shipping' : 'completed';
+            
+            const statusText = order.status === 'processing' ? 'Sedang Diproses' : 
+                             order.status === 'shipping' ? 'Sedang Dikirim' : 'Selesai';
+            
+            const statusBadge = document.getElementById('order-detail-status');
+            statusBadge.textContent = statusText;
+            statusBadge.className = `status-badge ${statusClass}`;
+            
+            // Set informasi pengiriman
+            document.getElementById('order-detail-name').textContent = order.customerName;
+            document.getElementById('order-detail-phone').textContent = order.customerPhone;
+            document.getElementById('order-detail-address').textContent = order.customerAddress;
+            
+            // Set ringkasan pesanan
+            const orderDetailItems = document.getElementById('order-detail-items');
+            orderDetailItems.innerHTML = '';
+            
+            order.items.forEach(item => {
+                const total = item.price * item.quantity;
+                
+                const orderItem = document.createElement('div');
+                orderItem.className = 'order-item';
+                orderItem.innerHTML = `
+                    <span>${item.name} x ${item.quantity}</span>
+                    <span>Rp ${total.toLocaleString('id-ID')}</span>
+                `;
+                
+                orderDetailItems.appendChild(orderItem);
+            });
+            
+            document.getElementById('order-detail-total').textContent = `Rp ${order.total.toLocaleString('id-ID')}`;
+            
+            // Set status history
+            updateOrderStatusHistory(order.statusHistory);
+            
+            // Tampilkan halaman detail
+            showPage('order-detail');
+        }
+
+        // Fungsi untuk memperbarui riwayat status pesanan
+        function updateOrderStatusHistory(statusHistory) {
+            statusHistory.forEach(status => {
+                const statusElement = document.getElementById(`status-${status.status}`);
+                const timeElement = document.getElementById(`status-${status.status}-time`);
+                
+                if (statusElement) {
+                    statusElement.classList.add('completed');
+                }
+                
+                if (timeElement) {
+                    timeElement.textContent = new Date(status.timestamp).toLocaleString('id-ID');
+                }
+            });
+        }
+
+        // Fungsi untuk menampilkan produk berdasarkan kategori
+        function showProductsByCategory(category) {
+            showPage('products');
+            
+            // Filter produk berdasarkan kategori
+            const filteredProducts = products.filter(product => product.category === category);
+            
+            // Tampilkan produk yang difilter
+            const productsContainer = document.getElementById('products-container');
+            productsContainer.innerHTML = '';
+            
+            filteredProducts.forEach(product => {
+                const productCard = createProductCard(product);
+                productsContainer.appendChild(productCard);
+            });
+            
+            // Set nilai filter kategori
+            document.getElementById('category-filter').value = category;
+        }
+
+        // Fungsi untuk filter produk
+        function filterProducts() {
+            const category = document.getElementById('category-filter').value;
+            
+            if (category === '') {
+                displayAllProducts();
+            } else {
+                showProductsByCategory(category);
+            }
+        }
+
+        // Fungsi untuk mengurutkan produk
+        function sortProducts() {
+            const sortBy = document.getElementById('sort-filter').value;
+            let sortedProducts = [...products];
+            
+            switch (sortBy) {
+                case 'price-asc':
+                    sortedProducts.sort((a, b) => a.price - b.price);
+                    break;
+                case 'price-desc':
+                    sortedProducts.sort((a, b) => b.price - a.price);
+                    break;
+                case 'name':
+                    sortedProducts.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                default:
+                    sortedProducts = [...products];
+            }
+            
+            // Tampilkan produk yang sudah diurutkan
+            const productsContainer = document.getElementById('products-container');
+            productsContainer.innerHTML = '';
+            
+            sortedProducts.forEach(product => {
+                const productCard = createProductCard(product);
+                productsContainer.appendChild(productCard);
+            });
+        }
+
+        // Fungsi untuk mencari produk
+        function searchProducts() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            
+            if (searchTerm === '') {
+                displayAllProducts();
+                return;
+            }
+            
+            const filteredProducts = products.filter(product => 
+                product.name.toLowerCase().includes(searchTerm) || 
+                product.description.toLowerCase().includes(searchTerm)
+            );
+            
+            // Tampilkan produk yang difilter
+            const productsContainer = document.getElementById('products-container');
+            productsContainer.innerHTML = '';
+            
+            filteredProducts.forEach(product => {
+                const productCard = createProductCard(product);
+                productsContainer.appendChild(productCard);
+            });
+        }
+
+        // Fungsi untuk menampilkan detail produk
+        function showProductDetail(productId) {
+            const product = products.find(p => p.id === productId);
+            
+            if (product) {
+                document.getElementById('product-detail-image').src = product.image;
+                document.getElementById('product-detail-name').textContent = product.name;
+                document.getElementById('product-detail-price').textContent = `Rp ${product.price.toLocaleString('id-ID')}`;
+                document.getElementById('product-detail-description').textContent = product.description;
+                document.getElementById('product-quantity').value = 1;
+                
+                // Simpan ID produk untuk digunakan saat menambah ke keranjang
+                document.getElementById('product-detail-page').dataset.productId = productId;
+                
+                showPage('product-detail');
+            }
+        }
+
+        // Fungsi untuk menambahkan ke keranjang dari halaman detail produk
+        function addToCart() {
+            const productId = parseInt(document.getElementById('product-detail-page').dataset.productId);
+            const product = products.find(p => p.id === productId);
+            const quantity = parseInt(document.getElementById('product-quantity').value);
+            
+            if (product) {
+                const existingItem = cart.find(item => item.id === productId);
+                
+                if (existingItem) {
+                    existingItem.quantity += quantity;
+                } else {
+                    cart.push({
+                        id: product.id,
+                        name: product.name,
+                        price: product.price,
+                        image: product.image,
+                        quantity: quantity
+                    });
+                }
+                
+                updateCartCount();
+                showNotification('Produk berhasil ditambahkan ke keranjang!');
+            }
+        }
+
+        // Fungsi untuk membeli sekarang
+        function buyNow() {
+            addToCart();
+            showPage('cart');
+        }
+
+        // Fungsi untuk mengurangi jumlah produk
+        function decreaseQuantity() {
+            const quantityInput = document.getElementById('product-quantity');
+            const currentValue = parseInt(quantityInput.value);
+            
+            if (currentValue > 1) {
+                quantityInput.value = currentValue - 1;
+            }
+        }
+
+        // Fungsi untuk menambah jumlah produk
+        function increaseQuantity() {
+            const quantityInput = document.getElementById('product-quantity');
+            const currentValue = parseInt(quantityInput.value);
+            quantityInput.value = currentValue + 1;
+        }
+
+        // Fungsi untuk menangani login
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            // Cari pengguna berdasarkan email dan password
+            const user = users.find(u => u.email === email && u.password === password);
+            
+            if (user) {
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                
+                if (user.isAdmin) {
+                    showAdminPanel();
+                } else {
+                    showPage('home');
+                    showNotification('Login berhasil! Selamat datang, ' + user.name);
+                }
+            } else {
+                showNotification('Email atau password salah!', 'error');
+            }
+        }
+
+        // Fungsi untuk menangani registrasi
+        function handleRegister(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('register-name').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const confirmPassword = document.getElementById('register-confirm-password').value;
+            
+            // Validasi password
+            if (password !== confirmPassword) {
+                showNotification('Password tidak cocok!', 'error');
+                return;
+            }
+            
+            // Cek apakah email sudah terdaftar
+            const existingUser = users.find(u => u.email === email);
+            
+            if (existingUser) {
+                showNotification('Email sudah terdaftar!', 'error');
+                return;
+            }
+            
+            // Buat pengguna baru
+            const newUser = {
+                id: users.length + 1,
+                name: name,
+                email: email,
+                password: password,
+                isAdmin: false
+            };
+            
+            users.push(newUser);
+            
+            showNotification('Registrasi berhasil! Silakan login.');
+            showPage('login');
+        }
+
+        // Fungsi untuk menampilkan panel admin
+        function showAdminPanel() {
+            document.getElementById('public-view').style.display = 'none';
+            document.getElementById('admin-panel').style.display = 'block';
+            
+            // Tampilkan dashboard admin
+            showAdminPage('dashboard');
+            
+            // Update statistik dashboard
+            updateAdminDashboard();
+        }
+
+        // Fungsi untuk menampilkan halaman admin
+        function showAdminPage(pageId) {
+            // Sembunyikan semua halaman admin
+            const adminPages = document.querySelectorAll('.admin-page-content');
+            adminPages.forEach(page => {
+                page.classList.add('d-none');
+            });
+            
+            // Tampilkan halaman yang dipilih
+            const selectedPage = document.getElementById(`admin-${pageId}`);
+            if (selectedPage) {
+                selectedPage.classList.remove('d-none');
+            }
+            
+            // Update judul halaman
+            document.getElementById('admin-page-title').textContent = pageId.charAt(0).toUpperCase() + pageId.slice(1);
+            
+            // Update menu aktif
+            const menuItems = document.querySelectorAll('.admin-menu a');
+            menuItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const activeMenuItem = document.querySelector(`.admin-menu a[onclick="showAdminPage('${pageId}')"]`);
+            if (activeMenuItem) {
+                activeMenuItem.classList.add('active');
+            }
+            
+            // Tampilkan konten halaman yang dipilih
+            if (pageId === 'products') {
+                displayAdminProducts();
+            } else if (pageId === 'orders') {
+                displayAdminOrders();
+            } else if (pageId === 'customers') {
+                displayAdminCustomers();
+            } else if (pageId === 'chat') {
+                displayAdminChat();
+            }
+        }
+
+        // Fungsi untuk memperbarui dashboard admin
+        function updateAdminDashboard() {
+            document.getElementById('total-orders').textContent = orders.length;
+            document.getElementById('completed-orders').textContent = orders.filter(order => order.status === 'completed').length;
+            document.getElementById('total-products').textContent = products.length;
+            document.getElementById('total-customers').textContent = users.filter(user => !user.isAdmin).length;
+        }
+
+        // Fungsi untuk menampilkan produk di panel admin
+        function displayAdminProducts() {
+            const adminProductsList = document.getElementById('admin-products-list');
+            adminProductsList.innerHTML = '';
+            
+            products.forEach(product => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${product.id}</td>
+                    <td><img src="${product.image}" alt="${product.name}" width="50"></td>
+                    <td>${product.name}</td>
+                    <td>${product.category}</td>
+                    <td>Rp ${product.price.toLocaleString('id-ID')}</td>
+                    <td>${product.stock}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editProduct(${product.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProduct(${product.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                adminProductsList.appendChild(tr);
+            });
+        }
+
+        // Fungsi untuk menampilkan pesanan di panel admin
+        function displayAdminOrders() {
+            const adminOrdersList = document.getElementById('admin-orders-list');
+            adminOrdersList.innerHTML = '';
+            
+            if (orders.length === 0) {
+                adminOrdersList.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center">Tidak ada pesanan</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            orders.forEach(order => {
+                const statusClass = order.status === 'processing' ? 'processing' : 
+                                   order.status === 'shipping' ? 'shipping' : 'completed';
+                
+                const statusText = order.status === 'processing' ? 'Sedang Diproses' : 
+                                 order.status === 'shipping' ? 'Sedang Dikirim' : 'Selesai';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>#${order.id}</td>
+                    <td>${order.customerName}</td>
+                    <td>Rp ${order.total.toLocaleString('id-ID')}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td>${new Date(order.date).toLocaleDateString('id-ID')}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="viewAdminOrder(${order.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="updateOrderStatus(${order.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                `;
+                
+                adminOrdersList.appendChild(tr);
+            });
+        }
+
+        // Fungsi untuk melihat detail pesanan di admin
+        function viewAdminOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            let itemsHtml
