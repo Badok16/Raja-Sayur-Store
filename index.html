@@ -1529,11 +1529,10 @@
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, addDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, addDoc, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
         
         // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
           apiKey: "AIzaSyBuG-LxK6rDzVp2-om_hhGiwOn2XpLmceE",
           authDomain: "rajasayur-store.firebaseapp.com",
@@ -1559,6 +1558,7 @@
         window.doc = doc;
         window.setDoc = setDoc;
         window.onSnapshot = onSnapshot;
+        window.getDoc = getDoc;
         
         console.log("Firebase initialized successfully");
     </script>
@@ -1568,7 +1568,7 @@
         let db = null;
         let auth = null;
         let firebaseAvailable = false;
-        let collection, getDocs, addDoc, doc, setDoc, onSnapshot;
+        let collection, getDocs, addDoc, doc, setDoc, onSnapshot, getDoc;
 
         // Variabel global untuk status admin
         let adminOnline = false;
@@ -1588,6 +1588,7 @@
             doc = window.doc;
             setDoc = window.setDoc;
             onSnapshot = window.onSnapshot;
+            getDoc = window.getDoc;
             console.log("Firebase loaded from module");
         } else {
             console.error("Firebase not loaded from module");
@@ -2239,6 +2240,23 @@
             }
         }
 
+        // Fungsi untuk memperbarui status typing
+        function updateTypingStatus(userId, isTyping) {
+            if (!firebaseAvailable || !db) return;
+            
+            try {
+                // Simpan status typing ke Firebase
+                setDoc(doc(db, 'typingStatus', userId.toString()), {
+                    isTyping: isTyping,
+                    timestamp: new Date().getTime()
+                }).catch(error => {
+                    console.error('Error updating typing status:', error);
+                });
+            } catch (error) {
+                console.error('Error updating typing status:', error);
+            }
+        }
+
         // Fungsi untuk mengecek apakah admin sedang aktif
         function isAdminActive() {
             // Logika untuk mengecek apakah admin sedang online
@@ -2313,8 +2331,7 @@
                 displayOrders();
             }
         }
-
-        // Fungsi untuk menampilkan produk unggulan
+		        // Fungsi untuk menampilkan produk unggulan
         function displayFeaturedProducts() {
             const featuredProductsContainer = document.getElementById('featured-products');
             featuredProductsContainer.innerHTML = '';
@@ -3129,7 +3146,7 @@
             const order = orders.find(o => o.id === orderId);
             if (!order) return;
             
-                        let itemsHtml = '';
+            let itemsHtml = '';
             
             order.items.forEach(item => {
                 itemsHtml += `
@@ -3561,23 +3578,6 @@
                         updateTypingStatus(currentChatUser.id, false);
                     }, 5000);
                 }
-            }
-        }
-
-        // Fungsi untuk memperbarui status typing
-        function updateTypingStatus(userId, isTyping) {
-            if (!firebaseAvailable || !db) return;
-            
-            try {
-                // Simpan status typing ke Firebase
-                setDoc(doc(db, 'typingStatus', userId.toString()), {
-                    isTyping: isTyping,
-                    timestamp: new Date().getTime()
-                }).catch(error => {
-                    console.error('Error updating typing status:', error);
-                });
-            } catch (error) {
-                console.error('Error updating typing status:', error);
             }
         }
 
