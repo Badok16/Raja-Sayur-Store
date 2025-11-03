@@ -1218,8 +1218,8 @@
                     </div>
                     <div class="col-md-4">
                         <h5>Kontak Kami</h5>
-                        <p><i class="fas fa-map-marker-alt me-2"></i>Jl. Contoh No. 123, Jakarta</p>
-                        <p><i class="fas fa-phone me-2"></i>(021) 12345678</p>
+                        <p><i class="fas fa-map-marker-alt me-2"></i>Jl. Merdeka Utara No.6, Desa Padamara</p>
+                        <p><i class="fas fa-phone me-2"></i>087765288041</p>
                         <p><i class="fas fa-envelope me-2"></i>info@rajasayur.com</p>
                     </div>
                 </div>
@@ -1481,38 +1481,66 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBuG-LxK6rDzVp2-om_hhGiwOn2XpLmceE",
+            authDomain: "rajasayur-store.firebaseapp.com",
+            projectId: "rajasayur-store",
+            storageBucket: "rajasayur-store.firebasestorage.app",
+            messagingSenderId: "34641740873",
+            appId: "1:34641740873:web:e9fb6c9a2279b275006b98",
+            measurementId: "G-NV9HHZ22FG"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Export untuk digunakan di script lain
+        window.db = db;
+        window.auth = auth;
+        window.firebaseAvailable = true;
+        window.collection = collection;
+        window.getDocs = getDocs;
+        window.addDoc = addDoc;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.onSnapshot = onSnapshot;
+        
+        console.log("Firebase initialized successfully");
+    </script>
+    
     <script>
         // Variabel global untuk Firebase
         let db = null;
         let auth = null;
         let firebaseAvailable = false;
+        let collection, getDocs, addDoc, doc, setDoc, onSnapshot;
 
-        // Coba inisialisasi Firebase dengan konfigurasi placeholder
-        try {
-            // Firebase Configuration - GANTI DENGAN KONFIGURASI ANDA
-            const firebaseConfig = {
-                apiKey: "AIzaSy...",
-                authDomain: "your-project.firebaseapp.com",
-                projectId: "your-project",
-                storageBucket: "your-project.appspot.com",
-                messagingSenderId: "123456789",
-                appId: "1:123456789:web:abcdef123456"
-            };
-
-            // Initialize Firebase
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-            auth = firebase.auth();
-            firebaseAvailable = true;
-            console.log("Firebase initialized successfully");
-        } catch (error) {
-            console.error("Firebase initialization failed:", error);
+        // Cek apakah Firebase sudah diinisialisasi dari module
+        if (window.db && window.auth) {
+            db = window.db;
+            auth = window.auth;
+            firebaseAvailable = window.firebaseAvailable;
+            collection = window.collection;
+            getDocs = window.getDocs;
+            addDoc = window.addDoc;
+            doc = window.doc;
+            setDoc = window.setDoc;
+            onSnapshot = window.onSnapshot;
+            console.log("Firebase loaded from module");
+        } else {
+            console.error("Firebase not loaded from module");
             firebaseAvailable = false;
-            // Gunakan localStorage sebagai fallback
-            console.log("Using localStorage as fallback");
         }
 
         // Data produk
@@ -1650,7 +1678,7 @@
         function loadOrdersData() {
             if (firebaseAvailable && db) {
                 // Gunakan Firebase
-                db.collection('orders').get().then(snapshot => {
+                getDocs(collection(db, 'orders')).then(snapshot => {
                     orders = [];
                     snapshot.forEach(doc => {
                         orders.push(doc.data());
@@ -1684,7 +1712,7 @@
             if (firebaseAvailable && db) {
                 // Gunakan Firebase
                 orders.forEach(order => {
-                    db.collection('orders').doc(order.id.toString()).set(order)
+                    setDoc(doc(db, 'orders', order.id.toString()), order)
                         .catch(error => {
                             console.error('Error saving order to Firebase:', error);
                         });
@@ -1700,7 +1728,7 @@
             if (firebaseAvailable && db) {
                 // Gunakan Firebase
                 // Muat chat users
-                db.collection('chatUsers').get().then(snapshot => {
+                getDocs(collection(db, 'chatUsers')).then(snapshot => {
                     chatUsers = [];
                     snapshot.forEach(doc => {
                         chatUsers.push(doc.data());
@@ -1712,7 +1740,7 @@
                 });
                 
                 // Muat chat messages
-                db.collection('chatMessages').get().then(snapshot => {
+                getDocs(collection(db, 'chatMessages')).then(snapshot => {
                     chatMessages = {};
                     snapshot.forEach(doc => {
                         const data = doc.data();
@@ -1755,7 +1783,7 @@
                 // Gunakan Firebase
                 // Simpan chat users
                 chatUsers.forEach(user => {
-                    db.collection('chatUsers').doc(user.id.toString()).set(user)
+                    setDoc(doc(db, 'chatUsers', user.id.toString()), user)
                         .catch(error => {
                             console.error('Error saving chat user to Firebase:', error);
                         });
@@ -1763,7 +1791,7 @@
                 
                 // Simpan chat messages
                 Object.keys(chatMessages).forEach(userId => {
-                    db.collection('chatMessages').doc(userId).set({
+                    setDoc(doc(db, 'chatMessages', userId), {
                         messages: chatMessages[userId]
                     }).catch(error => {
                         console.error('Error saving chat messages to Firebase:', error);
@@ -1781,7 +1809,7 @@
             if (!firebaseAvailable || !db) return;
             
             try {
-                db.collection('chatMessages').onSnapshot(snapshot => {
+                onSnapshot(collection(db, 'chatMessages'), snapshot => {
                     snapshot.docChanges().forEach(change => {
                         if (change.type === 'added') {
                             const data = change.doc.data();
@@ -1803,7 +1831,7 @@
             if (!firebaseAvailable || !db) return;
             
             try {
-                db.collection('orders').onSnapshot(snapshot => {
+                onSnapshot(collection(db, 'orders'), snapshot => {
                     snapshot.docChanges().forEach(change => {
                         if (change.type === 'added') {
                             const order = change.doc.data();
