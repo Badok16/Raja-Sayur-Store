@@ -1481,7 +1481,25 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script>
+        // Firebase Configuration - GANTI DENGAN KONFIGURASI ANDA
+        const firebaseConfig = {
+            apiKey: "AIzaSy...",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
         // Data produk
         const products = [
             {
@@ -1587,11 +1605,15 @@
                 currentUser = JSON.parse(savedUser);
             }
             
-            // Load data pesanan dari localStorage
+            // Load data pesanan dari Firebase
             loadOrdersData();
             
-            // Load data chat dari localStorage
+            // Load data chat dari Firebase
             loadChatData();
+            
+            // Setup listeners untuk real-time updates
+            setupChatListeners();
+            setupOrderListeners();
             
             // Cek apakah widget chat sudah dibuka sebelumnya
             const chatOpened = localStorage.getItem('chatOpened');
@@ -1607,37 +1629,102 @@
             setInterval(checkNewMessages, 2000);
         });
 
-        // Fungsi untuk memuat data pesanan dari localStorage
+        // Fungsi untuk memuat data pesanan dari Firebase
         function loadOrdersData() {
-            const savedOrders = localStorage.getItem('orders');
-            if (savedOrders) {
-                orders = JSON.parse(savedOrders);
-            }
+            db.collection('orders').get().then(snapshot => {
+                orders = [];
+                snapshot.forEach(doc => {
+                    orders.push(doc.data());
+                });
+            }).catch(error => {
+                console.error('Error loading orders:', error);
+            });
         }
 
-        // Fungsi untuk menyimpan data pesanan ke localStorage
+        // Fungsi untuk menyimpan data pesanan ke Firebase
         function saveOrdersData() {
-            localStorage.setItem('orders', JSON.stringify(orders));
+            orders.forEach(order => {
+                db.collection('orders').doc(order.id.toString()).set(order);
+            });
         }
 
-        // Fungsi untuk memuat data chat dari localStorage
+        // Fungsi untuk memuat data chat dari Firebase
         function loadChatData() {
-            const savedChatUsers = localStorage.getItem('chatUsers');
-            const savedChatMessages = localStorage.getItem('chatMessages');
+            // Muat chat users
+            db.collection('chatUsers').get().then(snapshot => {
+                chatUsers = [];
+                snapshot.forEach(doc => {
+                    chatUsers.push(doc.data());
+                });
+            }).catch(error => {
+                console.error('Error loading chat users:', error);
+            });
             
-            if (savedChatUsers) {
-                chatUsers = JSON.parse(savedChatUsers);
-            }
-            
-            if (savedChatMessages) {
-                chatMessages = JSON.parse(savedChatMessages);
-            }
+            // Muat chat messages
+            db.collection('chatMessages').get().then(snapshot => {
+                chatMessages = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    chatMessages[doc.id] = data.messages;
+                });
+            }).catch(error => {
+                console.error('Error loading chat messages:', error);
+            });
         }
 
-        // Fungsi untuk menyimpan data chat ke localStorage
+        // Fungsi untuk menyimpan data chat ke Firebase
         function saveChatData() {
-            localStorage.setItem('chatUsers', JSON.stringify(chatUsers));
-            localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+            // Simpan chat users
+            chatUsers.forEach(user => {
+                db.collection('chatUsers').doc(user.id.toString()).set(user);
+            });
+            
+            // Simpan chat messages
+            Object.keys(chatMessages).forEach(userId => {
+                db.collection('chatMessages').doc(userId).set({
+                    messages: chatMessages[userId]
+                });
+            });
+        }
+
+        // Setup listeners untuk real-time updates
+        function setupChatListeners() {
+            db.collection('chatMessages').onSnapshot(snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const data = change.doc.data();
+                        chatMessages[change.doc.id] = data.messages;
+                        
+                        // Update UI jika perlu
+                        if (document.getElementById('admin-panel').style.display !== 'none') {
+                            displayAdminChat();
+                        }
+                    }
+                });
+            });
+        }
+
+        function setupOrderListeners() {
+            db.collection('orders').onSnapshot(snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') {
+                        const order = change.doc.data();
+                        orders.push(order);
+                        
+                        // Update UI jika perlu
+                        if (document.getElementById('admin-panel').style.display !== 'none') {
+                            updateAdminDashboard();
+                            displayAdminOrders();
+                        }
+                    } else if (change.type === 'modified') {
+                        const order = change.doc.data();
+                        const index = orders.findIndex(o => o.id === order.id);
+                        if (index !== -1) {
+                            orders[index] = order;
+                        }
+                    }
+                });
+            });
         }
 
         // Fungsi untuk menampilkan halaman
@@ -1965,7 +2052,7 @@
             // Tambahkan ke daftar pesanan
             orders.push(order);
             
-            // Simpan ke localStorage
+            // Simpan ke Firebase
             saveOrdersData();
             
             // Kosongkan keranjang
@@ -2590,576 +2677,4 @@
             order.status = newStatus;
             order.statusHistory.push({
                 status: newStatus,
-                timestamp: new Date().toISOString(),
-                note: `Status diubah menjadi ${newStatus}`
-            });
-            
-            saveOrdersData();
-            displayAdminOrders();
-            showNotification(`Status pesanan #${order.id} berhasil diperbarui`);
-        }
-
-        // Fungsi untuk menampilkan pelanggan di panel admin
-        function displayAdminCustomers() {
-            const adminCustomersList = document.getElementById('admin-customers-list');
-            adminCustomersList.innerHTML = '';
-            
-            const customers = users.filter(user => !user.isAdmin);
-            
-            customers.forEach(customer => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${customer.id}</td>
-                    <td>${customer.name}</td>
-                    <td>${customer.email}</td>
-                    <td>${customer.registerDate || 'N/A'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${customer.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                `;
-                
-                adminCustomersList.appendChild(tr);
-            });
-        }
-
-        // Fungsi untuk menampilkan chat di panel admin
-        function displayAdminChat() {
-            const adminChatSidebar = document.getElementById('admin-chat-sidebar');
-            adminChatSidebar.innerHTML = '';
-            
-            if (chatUsers.length === 0) {
-                adminChatSidebar.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="fas fa-comments" style="font-size: 2rem; color: #ccc;"></i>
-                        <p class="mt-3">Belum ada pengguna yang chat</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            chatUsers.forEach(user => {
-                const userDiv = document.createElement('div');
-                userDiv.className = 'chat-user';
-                if (currentChatUser && currentChatUser.id === user.id) {
-                    userDiv.classList.add('active');
-                }
-                
-                // Get last message
-                const userMessages = chatMessages[user.id] || [];
-                const lastMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
-                
-                userDiv.innerHTML = `
-                    <div class="chat-user-name">${user.name}</div>
-                    <div class="chat-user-preview">${lastMessage ? lastMessage.text : 'Belum ada pesan'}</div>
-                `;
-                
-                userDiv.onclick = function() {
-                    selectChatUser(user);
-                };
-                
-                adminChatSidebar.appendChild(userDiv);
-            });
-            
-            // Reset chat notification
-            updateChatNotification();
-        }
-
-        // Fungsi untuk memilih pengguna chat di admin
-        function selectChatUser(user) {
-            currentChatUser = user;
-            
-            // Update active state
-            const chatUsers = document.querySelectorAll('.chat-user');
-            chatUsers.forEach(u => {
-                u.classList.remove('active');
-            });
-            
-            const selectedUser = document.querySelector(`.chat-user:nth-child(${chatUsers.indexOf(user) + 1})`);
-            if (selectedUser) {
-                selectedUser.classList.add('active');
-            }
-            
-            // Update header
-            document.getElementById('admin-chat-user-name').textContent = user.name;
-            
-            // Load messages
-            loadAdminChatMessages(user.id);
-        }
-
-        // Fungsi untuk memuat pesan chat di admin
-        function loadAdminChatMessages(userId) {
-            const adminChatMessages = document.getElementById('admin-chat-messages');
-            adminChatMessages.innerHTML = '';
-            
-            const userMessages = chatMessages[userId] || [];
-            
-            if (userMessages.length === 0) {
-                adminChatMessages.innerHTML = `
-                    <div class="text-center text-muted py-5">
-                        <i class="fas fa-comments" style="font-size: 3rem;"></i>
-                        <p class="mt-3">Belum ada pesan</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            userMessages.forEach(message => {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `chat-message ${message.sender === 'admin' ? 'admin' : 'user'}`;
-                
-                const time = new Date(message.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                
-                messageDiv.innerHTML = `
-                    <div class="chat-bubble">${message.text}</div>
-                    <div class="chat-time">${time}</div>
-                `;
-                
-                adminChatMessages.appendChild(messageDiv);
-            });
-            
-            // Scroll to bottom
-            adminChatMessages.scrollTop = adminChatMessages.scrollHeight;
-        }
-
-        // Fungsi untuk mengirim pesan dari admin
-        function sendAdminMessage() {
-            const messageInput = document.getElementById('admin-chat-message');
-            const messageText = messageInput.value.trim();
-            
-            if (messageText === '' || !currentChatUser) {
-                return;
-            }
-            
-            // Create message
-            const message = {
-                text: messageText,
-                sender: 'admin',
-                timestamp: new Date().toISOString()
-            };
-            
-            // Add to messages
-            if (!chatMessages[currentChatUser.id]) {
-                chatMessages[currentChatUser.id] = [];
-            }
-            
-            chatMessages[currentChatUser.id].push(message);
-            
-            // Save to localStorage
-            saveChatData();
-            
-            // Clear input
-            messageInput.value = '';
-            
-            // Reload messages
-            loadAdminChatMessages(currentChatUser.id);
-            
-            // Update chat list
-            displayAdminChat();
-        }
-
-        // Fungsi untuk menangani keypress di input chat admin
-        function handleAdminChatKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendAdminMessage();
-            }
-        }
-
-        // Fungsi untuk menampilkan login admin
-        function showAdminLogin() {
-            const email = prompt('Email Admin:');
-            const password = prompt('Password Admin:');
-            
-            if (email && password) {
-                const admin = users.find(u => u.email === email && u.password === password && u.isAdmin);
-                
-                if (admin) {
-                    currentUser = admin;
-                    localStorage.setItem('currentUser', JSON.stringify(admin));
-                    showAdminPanel();
-                } else {
-                    showNotification('Email atau password admin salah!', 'error');
-                }
-            }
-        }
-
-        // Fungsi untuk logout admin
-        function logoutAdmin() {
-            currentUser = null;
-            localStorage.removeItem('currentUser');
-            
-            document.getElementById('admin-panel').style.display = 'none';
-            document.getElementById('public-view').style.display = 'block';
-            
-            showPage('home');
-            showNotification('Anda telah logout dari panel admin');
-        }
-
-        // Fungsi untuk menampilkan notifikasi
-        function showNotification(message, type = 'success') {
-            // Buat elemen notifikasi
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type === 'error' ? 'danger' : 'success'} position-fixed`;
-            notification.style.top = '20px';
-            notification.style.right = '20px';
-            notification.style.zIndex = '9999';
-            notification.style.minWidth = '300px';
-            notification.textContent = message;
-            
-            // Tambahkan tombol tutup
-            const closeButton = document.createElement('button');
-            closeButton.type = 'button';
-            closeButton.className = 'btn-close';
-            closeButton.setAttribute('data-bs-dismiss', 'alert');
-            closeButton.setAttribute('aria-label', 'Close');
-            
-            notification.appendChild(closeButton);
-            
-            // Tambahkan ke body
-            document.body.appendChild(notification);
-            
-            // Hapus notifikasi setelah 3 detik
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-
-        // Fungsi untuk mengedit produk (placeholder)
-        function editProduct(productId) {
-            showNotification('Fitur edit produk akan segera tersedia');
-        }
-
-        // Fungsi untuk menghapus produk (placeholder)
-        function deleteProduct(productId) {
-            if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
-                const index = products.findIndex(p => p.id === productId);
-                
-                if (index !== -1) {
-                    products.splice(index, 1);
-                    displayAdminProducts();
-                    updateAdminDashboard();
-                    showNotification('Produk berhasil dihapus');
-                }
-            }
-        }
-
-        // Fungsi untuk menghapus pelanggan (placeholder)
-        function deleteCustomer(customerId) {
-            if (confirm('Apakah Anda yakin ingin menghapus pelanggan ini?')) {
-                const index = users.findIndex(u => u.id === customerId);
-                
-                if (index !== -1) {
-                    users.splice(index, 1);
-                    displayAdminCustomers();
-                    updateAdminDashboard();
-                    showNotification('Pelanggan berhasil dihapus');
-                }
-            }
-        }
-
-        // Fungsi untuk menambah produk (placeholder)
-        function showAddProductModal() {
-            showNotification('Fitur tambah produk akan segera tersedia');
-        }
-
-        // ===== CHAT FUNCTIONS =====
-
-        // Fungsi untuk toggle chat widget
-        function toggleChat() {
-            const chatWidget = document.getElementById('chat-widget');
-            const chatToggleIcon = document.getElementById('chat-toggle-icon');
-            
-            chatWidget.classList.toggle('opened');
-            
-            if (chatWidget.classList.contains('opened')) {
-                chatToggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
-                localStorage.setItem('chatOpened', 'true');
-            } else {
-                chatToggleIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
-                localStorage.setItem('chatOpened', 'false');
-            }
-        }
-
-        // Fungsi untuk memulai chat
-        function startChat() {
-            const name = document.getElementById('chat-name').value.trim();
-            const email = document.getElementById('chat-email').value.trim();
-            
-            if (name === '' || email === '') {
-                showNotification('Nama dan email harus diisi!', 'error');
-                return;
-            }
-            
-            // Create or get user
-            let user = chatUsers.find(u => u.email === email);
-            
-            if (!user) {
-                user = {
-                    id: Date.now(),
-                    name: name,
-                    email: email
-                };
-                
-                chatUsers.push(user);
-                saveChatData();
-            }
-            
-            chatUser = user;
-            
-            // Show chat input and hide form
-            document.getElementById('chat-form').classList.add('d-none');
-            document.getElementById('chat-input').classList.remove('d-none');
-            
-            // Load messages
-            loadChatMessages(user.id);
-            
-            // Send welcome message
-            const welcomeMessage = {
-                text: `Halo ${name}! Selamat datang di Raja Sayur Store. Ada yang bisa kami bantu?`,
-                sender: 'admin',
-                timestamp: new Date().toISOString()
-            };
-            
-            if (!chatMessages[user.id]) {
-                chatMessages[user.id] = [];
-            }
-            
-            chatMessages[user.id].push(welcomeMessage);
-            saveChatData();
-            loadChatMessages(user.id);
-            
-            // Update admin chat notification
-            updateChatNotification();
-        }
-
-        // Fungsi untuk memuat pesan chat
-        function loadChatMessages(userId) {
-            const chatBody = document.getElementById('chat-body');
-            chatBody.innerHTML = '';
-            
-            const userMessages = chatMessages[userId] || [];
-            
-            userMessages.forEach(message => {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `chat-message ${message.sender === 'admin' ? 'admin' : 'user'}`;
-                
-                const time = new Date(message.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                
-                messageDiv.innerHTML = `
-                    <div class="chat-bubble">${message.text}</div>
-                    <div class="chat-time">${time}</div>
-                `;
-                
-                chatBody.appendChild(messageDiv);
-            });
-            
-            // Scroll to bottom
-            chatBody.scrollTop = chatBody.scrollHeight;
-        }
-
-        // Fungsi untuk mengirim pesan
-        function sendMessage() {
-            const messageInput = document.getElementById('chat-message');
-            const messageText = messageInput.value.trim();
-            
-            if (messageText === '' || !chatUser) {
-                return;
-            }
-            
-            // Create message
-            const message = {
-                text: messageText,
-                sender: 'user',
-                timestamp: new Date().toISOString()
-            };
-            
-            // Add to messages
-            if (!chatMessages[chatUser.id]) {
-                chatMessages[chatUser.id] = [];
-            }
-            
-            chatMessages[chatUser.id].push(message);
-            
-            // Save to localStorage
-            saveChatData();
-            
-            // Clear input
-            messageInput.value = '';
-            
-            // Reload messages
-            loadChatMessages(chatUser.id);
-            
-            // Simulate admin response after 1 second
-            setTimeout(() => {
-                simulateAdminResponse(chatUser.id);
-            }, 1000);
-            
-            // Update admin chat notification
-            updateChatNotification();
-        }
-
-        // Fungsi untuk menangani keypress di input chat
-        function handleChatKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        }
-
-        // Fungsi untuk mensimulasikan respons admin
-        function simulateAdminResponse(userId) {
-            const responses = [
-                "Terima kasih telah menghubungi kami. Ada yang bisa kami bantu?",
-                "Baik, kami akan segera memproses permintaan Anda.",
-                "Mohon tunggu sebentar, kami sedang mengecek ketersediaan produk.",
-                "Produk tersebut tersedia. Apakah Anda ingin memesannya?",
-                "Kami akan mengirimkan detail pemesanan melalui email.",
-                "Terima kasih atas kepercayaan Anda kepada kami."
-            ];
-            
-            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-            
-            const message = {
-                text: randomResponse,
-                sender: 'admin',
-                timestamp: new Date().toISOString()
-            };
-            
-            // Add to messages
-            if (!chatMessages[userId]) {
-                chatMessages[userId] = [];
-            }
-            
-            chatMessages[userId].push(message);
-            
-            // Save to localStorage
-            saveChatData();
-            
-            // Reload messages if this user is currently active
-            if (chatUser && chatUser.id === userId) {
-                loadChatMessages(userId);
-            }
-            
-            // Update admin chat notification
-            updateChatNotification();
-        }
-
-        // Fungsi untuk memperbarui notifikasi chat admin
-        function updateChatNotification() {
-            const notification = document.getElementById('admin-chat-notification');
-            let unreadCount = 0;
-            
-            // Count unread messages from all users
-            chatUsers.forEach(user => {
-                const userMessages = chatMessages[user.id] || [];
-                const lastMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
-                
-                if (lastMessage && lastMessage.sender === 'user') {
-                    unreadCount++;
-                }
-            });
-            
-            notification.textContent = unreadCount;
-            
-            if (unreadCount === 0) {
-                notification.classList.add('d-none');
-            } else {
-                notification.classList.remove('d-none');
-            }
-        }
-
-        // Fungsi untuk memeriksa pesan baru
-        function checkNewMessages() {
-            // Check if we're in admin panel and on chat page
-            const adminPanel = document.getElementById('admin-panel');
-            const adminChat = document.getElementById('admin-chat');
-            
-            if (adminPanel && adminPanel.style.display !== 'none' && 
-                adminChat && !adminChat.classList.contains('d-none')) {
-                // Reload admin chat if needed
-                displayAdminChat();
-                
-                // Reload messages if a user is selected
-                if (currentChatUser) {
-                    loadAdminChatMessages(currentChatUser.id);
-                }
-            }
-            
-            // Update chat notification
-            updateChatNotification();
-        }
-   <!-- Tambahkan di head -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-
-<!-- Tambahkan sebelum body penutup -->
-<script>
-    // Firebase Configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSy...",
-        authDomain: "your-project.firebaseapp.com",
-        projectId: "your-project",
-        storageBucket: "your-project.appspot.com",
-        messagingSenderId: "123456789",
-        appId: "1:123456789:web:abcdef123456"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
-
-    // Fungsi untuk menyimpan chat ke Firestore
-    async function saveChatToFirestore(message) {
-        try {
-            await db.collection('chats').add({
-                ...message,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        } catch (error) {
-            console.error('Error saving chat:', error);
-        }
-    }
-
-    // Fungsi untuk memuat chat dari Firestore
-    function loadChatsFromFirestore(callback) {
-        db.collection('chats')
-            .orderBy('timestamp', 'asc')
-            .onSnapshot(snapshot => {
-                const chats = [];
-                snapshot.forEach(doc => {
-                    chats.push({ id: doc.id, ...doc.data() });
-                });
-                callback(chats);
-            });
-    }
-
-    // Fungsi untuk menyimpan pesanan ke Firestore
-    async function saveOrderToFirestore(order) {
-        try {
-            await db.collection('orders').add({
-                ...order,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        } catch (error) {
-            console.error('Error saving order:', error);
-        }
-    }
-
-    // Fungsi untuk memuat pesanan dari Firestore
-    function loadOrdersFromFirestore(callback) {
-        db.collection('orders')
-            .orderBy('timestamp', 'desc')
-            .onSnapshot(snapshot => {
-                const orders = [];
-                snapshot.forEach(doc => {
-                    orders.push({ id: doc.id, ...doc.data() });
-                });
-                callback(orders);
-            });
-    }
-</script> </script>
-</body>
-
-</html>
+                timestamp: new
