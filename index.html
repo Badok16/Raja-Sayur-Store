@@ -3129,4 +3129,1071 @@
             const order = orders.find(o => o.id === orderId);
             if (!order) return;
             
-            let itemsHtml
+                        let itemsHtml = '';
+            
+            order.items.forEach(item => {
+                itemsHtml += `
+                    <div class="order-item">
+                        <span>${item.name} x ${item.quantity}</span>
+                        <span>Rp ${(item.price * item.quantity).toLocaleString('id-ID')}</span>
+                    </div>
+                `;
+            });
+            
+            // Buat modal untuk menampilkan detail pesanan
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'orderDetailModal';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Detail Pesanan #${order.id}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Informasi Pelanggan</h6>
+                                    <p><strong>Nama:</strong> ${order.customerName}</p>
+                                    <p><strong>Telepon:</strong> ${order.customerPhone}</p>
+                                    <p><strong>Alamat:</strong> ${order.customerAddress}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Informasi Pesanan</h6>
+                                    <p><strong>Tanggal:</strong> ${new Date(order.date).toLocaleString('id-ID')}</p>
+                                    <p><strong>Metode Pembayaran:</strong> ${order.paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : 'Transfer Bank'}</p>
+                                    <p><strong>Status:</strong> <span class="status-badge ${order.status === 'processing' ? 'processing' : order.status === 'shipping' ? 'shipping' : 'completed'}">${order.status === 'processing' ? 'Sedang Diproses' : order.status === 'shipping' ? 'Sedang Dikirim' : 'Selesai'}</span></p>
+                                </div>
+                            </div>
+                            <hr>
+                            <h6>Item Pesanan</h6>
+                            <div class="order-items">
+                                ${itemsHtml}
+                            </div>
+                            <hr>
+                            <div class="order-total">
+                                <span>Total:</span>
+                                <span>Rp ${order.total.toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                            <button type="button" class="btn btn-primary" onclick="updateOrderStatus(${order.id})">Update Status</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Tampilkan modal
+            const orderModal = new bootstrap.Modal(document.getElementById('orderDetailModal'));
+            orderModal.show();
+            
+            // Hapus modal setelah ditutup
+            document.getElementById('orderDetailModal').addEventListener('hidden.bs.modal', function() {
+                document.body.removeChild(modal);
+            });
+        }
+
+        // Fungsi untuk memperbarui status pesanan
+        function updateOrderStatus(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            // Buat modal untuk update status
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'updateStatusModal';
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Update Status Pesanan #${order.id}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="updateStatusForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-select" id="new-status">
+                                        <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>Sedang Diproses</option>
+                                        <option value="shipping" ${order.status === 'shipping' ? 'selected' : ''}>Sedang Dikirim</option>
+                                        <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Selesai</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Catatan</label>
+                                    <textarea class="form-control" id="status-note" rows="3" placeholder="Catatan untuk status ini"></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary" onclick="saveOrderStatus(${orderId})">Simpan</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Tampilkan modal
+            const statusModal = new bootstrap.Modal(document.getElementById('updateStatusModal'));
+            statusModal.show();
+            
+            // Hapus modal setelah ditutup
+            document.getElementById('updateStatusModal').addEventListener('hidden.bs.modal', function() {
+                document.body.removeChild(modal);
+            });
+        }
+
+        // Fungsi untuk menyimpan status pesanan
+        function saveOrderStatus(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            const newStatus = document.getElementById('new-status').value;
+            const statusNote = document.getElementById('status-note').value;
+            
+            // Update status pesanan
+            order.status = newStatus;
+            
+            // Tambahkan ke riwayat status
+            order.statusHistory.push({
+                status: newStatus,
+                timestamp: new Date().toISOString(),
+                note: statusNote || `Status diubah menjadi ${newStatus === 'processing' ? 'Sedang Diproses' : newStatus === 'shipping' ? 'Sedang Dikirim' : 'Selesai'}`
+            });
+            
+            // Simpan data
+            saveOrdersData();
+            
+            // Tutup modal
+            const statusModal = bootstrap.Modal.getInstance(document.getElementById('updateStatusModal'));
+            statusModal.hide();
+            
+            // Perbarui tampilan
+            displayAdminOrders();
+            
+            // Tampilkan notifikasi
+            showNotification('Status pesanan berhasil diperbarui!');
+        }
+
+        // Fungsi untuk menampilkan pelanggan di panel admin
+        function displayAdminCustomers() {
+            const adminCustomersList = document.getElementById('admin-customers-list');
+            adminCustomersList.innerHTML = '';
+            
+            // Filter hanya pelanggan (bukan admin)
+            const customers = users.filter(user => !user.isAdmin);
+            
+            if (customers.length === 0) {
+                adminCustomersList.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center">Tidak ada pelanggan</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            customers.forEach(customer => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${customer.id}</td>
+                    <td>${customer.name}</td>
+                    <td>${customer.email}</td>
+                    <td>${new Date(customer.createdAt || Date.now()).toLocaleDateString('id-ID')}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="viewCustomer(${customer.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${customer.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                adminCustomersList.appendChild(tr);
+            });
+        }
+
+        // Fungsi untuk melihat detail pelanggan
+        function viewCustomer(customerId) {
+            const customer = users.find(u => u.id === customerId);
+            if (!customer) return;
+            
+            // Buat modal untuk menampilkan detail pelanggan
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'customerDetailModal';
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Detail Pelanggan</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">ID</label>
+                                <input type="text" class="form-control" value="${customer.id}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Nama</label>
+                                <input type="text" class="form-control" value="${customer.name}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" value="${customer.email}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tanggal Daftar</label>
+                                <input type="text" class="form-control" value="${new Date(customer.createdAt || Date.now()).toLocaleString('id-ID')}" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Total Pesanan</label>
+                                <input type="text" class="form-control" value="${orders.filter(order => order.customerEmail === customer.email).length}" readonly>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Tampilkan modal
+            const customerModal = new bootstrap.Modal(document.getElementById('customerDetailModal'));
+            customerModal.show();
+            
+            // Hapus modal setelah ditutup
+            document.getElementById('customerDetailModal').addEventListener('hidden.bs.modal', function() {
+                document.body.removeChild(modal);
+            });
+        }
+
+        // Fungsi untuk menghapus pelanggan
+        function deleteCustomer(customerId) {
+            if (confirm('Apakah Anda yakin ingin menghapus pelanggan ini?')) {
+                users = users.filter(user => user.id !== customerId);
+                
+                // Simpan data
+                localStorage.setItem('users', JSON.stringify(users));
+                
+                // Perbarui tampilan
+                displayAdminCustomers();
+                
+                // Tampilkan notifikasi
+                showNotification('Pelanggan berhasil dihapus!');
+            }
+        }
+
+        // Fungsi untuk menampilkan chat di panel admin
+        function displayAdminChat() {
+            const adminChatSidebar = document.getElementById('admin-chat-sidebar');
+            adminChatSidebar.innerHTML = '';
+            
+            if (chatUsers.length === 0) {
+                adminChatSidebar.innerHTML = `
+                    <div class="text-center py-3">
+                        <p>Tidak ada percakapan</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            chatUsers.forEach(user => {
+                const chatUserDiv = document.createElement('div');
+                chatUserDiv.className = 'chat-user';
+                if (currentChatUser && currentChatUser.id === user.id) {
+                    chatUserDiv.classList.add('active');
+                }
+                
+                // Cek apakah ada pesan yang belum dibaca
+                const unreadCount = chatMessages[user.id] ? 
+                    chatMessages[user.id].filter(msg => msg.sender === 'user' && !msg.read).length : 0;
+                
+                // Dapatkan pesan terakhir
+                let lastMessage = '';
+                if (chatMessages[user.id] && chatMessages[user.id].length > 0) {
+                    const messages = chatMessages[user.id];
+                    lastMessage = messages[messages.length - 1].text;
+                    if (lastMessage.length > 30) {
+                        lastMessage = lastMessage.substring(0, 30) + '...';
+                    }
+                }
+                
+                chatUserDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div onclick="selectChatUser(${user.id})" style="cursor: pointer; flex: 1;">
+                            <div class="chat-user-name">${user.name}</div>
+                            <div class="chat-user-preview">${lastMessage || 'Belum ada pesan'}</div>
+                        </div>
+                        ${unreadCount > 0 ? `<span class="badge bg-danger">${unreadCount}</span>` : ''}
+                    </div>
+                `;
+                
+                adminChatSidebar.appendChild(chatUserDiv);
+            });
+            
+            // Update notifikasi chat
+            updateChatNotification();
+        }
+
+        // Fungsi untuk memilih pengguna chat
+        function selectChatUser(userId) {
+            currentChatUser = chatUsers.find(user => user.id === userId);
+            
+            if (currentChatUser) {
+                // Update header chat
+                document.getElementById('admin-chat-user-name').textContent = currentChatUser.name;
+                
+                // Tandai semua pesan sebagai sudah dibaca
+                if (chatMessages[currentChatUser.id]) {
+                    chatMessages[currentChatUser.id].forEach(msg => {
+                        if (msg.sender === 'user') {
+                            msg.read = true;
+                        }
+                    });
+                    
+                    // Simpan data
+                    saveChatData();
+                }
+                
+                // Tampilkan pesan
+                displayAdminChatMessages();
+                
+                // Update tampilan daftar pengguna
+                displayAdminChat();
+            }
+        }
+
+        // Fungsi untuk menampilkan pesan chat di admin
+        function displayAdminChatMessages() {
+            const adminChatMessages = document.getElementById('admin-chat-messages');
+            adminChatMessages.innerHTML = '';
+            
+            if (!currentChatUser || !chatMessages[currentChatUser.id]) {
+                adminChatMessages.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-comments" style="font-size: 3rem;"></i>
+                        <p class="mt-3">Tidak ada pesan</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const messages = chatMessages[currentChatUser.id];
+            
+            messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${message.sender === 'admin' ? 'admin' : 'user'}`;
+                
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.className = 'chat-bubble';
+                bubbleDiv.textContent = message.text;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'chat-time';
+                timeDiv.textContent = new Date(message.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                
+                messageDiv.appendChild(bubbleDiv);
+                messageDiv.appendChild(timeDiv);
+                
+                adminChatMessages.appendChild(messageDiv);
+            });
+            
+            // Scroll ke bawah
+            adminChatMessages.scrollTop = adminChatMessages.scrollHeight;
+        }
+
+        // Fungsi untuk mengirim pesan dari admin
+        function sendAdminMessage() {
+            const messageInput = document.getElementById('admin-chat-message');
+            const messageText = messageInput.value.trim();
+            
+            if (!messageText || !currentChatUser) return;
+            
+            // Buat pesan baru
+            const message = {
+                text: messageText,
+                sender: 'admin',
+                timestamp: new Date().toISOString(),
+                read: false
+            };
+            
+            // Tambahkan ke pesan
+            if (!chatMessages[currentChatUser.id]) {
+                chatMessages[currentChatUser.id] = [];
+            }
+            
+            chatMessages[currentChatUser.id].push(message);
+            
+            // Simpan data
+            saveChatData();
+            
+            // Kosongkan input
+            messageInput.value = '';
+            
+            // Tampilkan pesan
+            displayAdminChatMessages();
+            
+            // Update status typing
+            updateTypingStatus(currentChatUser.id, false);
+        }
+
+        // Fungsi untuk menangani keypress di input chat admin
+        function handleAdminChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendAdminMessage();
+            } else {
+                // Update status typing
+                if (currentChatUser) {
+                    updateTypingStatus(currentChatUser.id, true);
+                    
+                    // Set timeout untuk menghapus status typing setelah 5 detik tidak ada aktivitas
+                    clearTimeout(window.typingTimeout);
+                    window.typingTimeout = setTimeout(() => {
+                        updateTypingStatus(currentChatUser.id, false);
+                    }, 5000);
+                }
+            }
+        }
+
+        // Fungsi untuk memperbarui status typing
+        function updateTypingStatus(userId, isTyping) {
+            if (!firebaseAvailable || !db) return;
+            
+            try {
+                // Simpan status typing ke Firebase
+                setDoc(doc(db, 'typingStatus', userId.toString()), {
+                    isTyping: isTyping,
+                    timestamp: new Date().getTime()
+                }).catch(error => {
+                    console.error('Error updating typing status:', error);
+                });
+            } catch (error) {
+                console.error('Error updating typing status:', error);
+            }
+        }
+
+        // Fungsi untuk menambah produk
+        function showAddProductModal() {
+            // Buat modal untuk menambah produk
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'addProductModal';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Tambah Produk</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="addProductForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Nama Produk</label>
+                                            <input type="text" class="form-control" id="product-name" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Kategori</label>
+                                            <select class="form-select" id="product-category" required>
+                                                <option value="">Pilih Kategori</option>
+                                                <option value="sayuran">Sayuran</option>
+                                                <option value="bumbu">Bumbu Dapur</option>
+                                                <option value="organik">Produk Organik</option>
+                                                <option value="premium">Premium</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Harga</label>
+                                            <input type="number" class="form-control" id="product-price" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Stok</label>
+                                            <input type="number" class="form-control" id="product-stock" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">URL Gambar</label>
+                                            <input type="text" class="form-control" id="product-image" placeholder="https://example.com/image.jpg">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Deskripsi</label>
+                                            <textarea class="form-control" id="product-description" rows="5" required></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary" onclick="addProduct()">Simpan</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Tampilkan modal
+            const productModal = new bootstrap.Modal(document.getElementById('addProductModal'));
+            productModal.show();
+            
+            // Hapus modal setelah ditutup
+            document.getElementById('addProductModal').addEventListener('hidden.bs.modal', function() {
+                document.body.removeChild(modal);
+            });
+        }
+
+        // Fungsi untuk menambah produk
+        function addProduct() {
+            const name = document.getElementById('product-name').value.trim();
+            const category = document.getElementById('product-category').value;
+            const price = parseInt(document.getElementById('product-price').value);
+            const stock = parseInt(document.getElementById('product-stock').value);
+            const image = document.getElementById('product-image').value.trim() || `https://picsum.photos/seed/${name}/600/400.jpg`;
+            const description = document.getElementById('product-description').value.trim();
+            
+            if (!name || !category || !price || !stock || !description) {
+                showNotification('Harap lengkapi semua field yang diperlukan!', 'error');
+                return;
+            }
+            
+            // Buat produk baru
+            const newProduct = {
+                id: products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1,
+                name: name,
+                category: category,
+                price: price,
+                stock: stock,
+                image: image,
+                description: description
+            };
+            
+            // Tambahkan ke daftar produk
+            products.push(newProduct);
+            
+            // Simpan data
+            localStorage.setItem('products', JSON.stringify(products));
+            
+            // Tutup modal
+            const productModal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
+            productModal.hide();
+            
+            // Perbarui tampilan
+            displayAdminProducts();
+            
+            // Tampilkan notifikasi
+            showNotification('Produk berhasil ditambahkan!');
+        }
+
+        // Fungsi untuk mengedit produk
+        function editProduct(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            // Buat modal untuk mengedit produk
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'editProductModal';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Produk</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editProductForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">ID</label>
+                                            <input type="text" class="form-control" value="${product.id}" readonly>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Nama Produk</label>
+                                            <input type="text" class="form-control" id="edit-product-name" value="${product.name}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Kategori</label>
+                                            <select class="form-select" id="edit-product-category" required>
+                                                <option value="sayuran" ${product.category === 'sayuran' ? 'selected' : ''}>Sayuran</option>
+                                                <option value="bumbu" ${product.category === 'bumbu' ? 'selected' : ''}>Bumbu Dapur</option>
+                                                <option value="organik" ${product.category === 'organik' ? 'selected' : ''}>Produk Organik</option>
+                                                <option value="premium" ${product.category === 'premium' ? 'selected' : ''}>Premium</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Harga</label>
+                                            <input type="number" class="form-control" id="edit-product-price" value="${product.price}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Stok</label>
+                                            <input type="number" class="form-control" id="edit-product-stock" value="${product.stock}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">URL Gambar</label>
+                                            <input type="text" class="form-control" id="edit-product-image" value="${product.image}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Deskripsi</label>
+                                            <textarea class="form-control" id="edit-product-description" rows="5" required>${product.description}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-primary" onclick="saveProduct(${productId})">Simpan</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Tampilkan modal
+            const productModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+            productModal.show();
+            
+            // Hapus modal setelah ditutup
+            document.getElementById('editProductModal').addEventListener('hidden.bs.modal', function() {
+                document.body.removeChild(modal);
+            });
+        }
+
+        // Fungsi untuk menyimpan perubahan produk
+        function saveProduct(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            const name = document.getElementById('edit-product-name').value.trim();
+            const category = document.getElementById('edit-product-category').value;
+            const price = parseInt(document.getElementById('edit-product-price').value);
+            const stock = parseInt(document.getElementById('edit-product-stock').value);
+            const image = document.getElementById('edit-product-image').value.trim();
+            const description = document.getElementById('edit-product-description').value.trim();
+            
+            if (!name || !category || !price || !stock || !description) {
+                showNotification('Harap lengkapi semua field yang diperlukan!', 'error');
+                return;
+            }
+            
+            // Update produk
+            product.name = name;
+            product.category = category;
+            product.price = price;
+            product.stock = stock;
+            if (image) product.image = image;
+            product.description = description;
+            
+            // Simpan data
+            localStorage.setItem('products', JSON.stringify(products));
+            
+            // Tutup modal
+            const productModal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+            productModal.hide();
+            
+            // Perbarui tampilan
+            displayAdminProducts();
+            
+            // Tampilkan notifikasi
+            showNotification('Produk berhasil diperbarui!');
+        }
+
+        // Fungsi untuk menghapus produk
+        function deleteProduct(productId) {
+            if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+                products = products.filter(product => product.id !== productId);
+                
+                // Simpan data
+                localStorage.setItem('products', JSON.stringify(products));
+                
+                // Perbarui tampilan
+                displayAdminProducts();
+                
+                // Tampilkan notifikasi
+                showNotification('Produk berhasil dihapus!');
+            }
+        }
+
+        // Fungsi untuk menampilkan notifikasi
+        function showNotification(message, type = 'success') {
+            // Buat elemen notifikasi
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.zIndex = '9999';
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Hapus notifikasi setelah 3 detik
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 150);
+            }, 3000);
+        }
+
+        // Fungsi untuk toggle chat widget
+        function toggleChat() {
+            const chatWidget = document.getElementById('chat-widget');
+            const chatToggleIcon = document.getElementById('chat-toggle-icon');
+            
+            chatWidget.classList.toggle('opened');
+            
+            if (chatWidget.classList.contains('opened')) {
+                chatToggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+                localStorage.setItem('chatOpened', 'true');
+            } else {
+                chatToggleIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+                localStorage.setItem('chatOpened', 'false');
+            }
+        }
+
+        // Fungsi untuk memulai chat
+        function startChat() {
+            const name = document.getElementById('chat-name').value.trim();
+            const email = document.getElementById('chat-email').value.trim();
+            
+            if (!name || !email) {
+                showNotification('Harap lengkapi nama dan email!', 'error');
+                return;
+            }
+            
+            // Buat pengguna chat baru
+            const newChatUser = {
+                id: Date.now(),
+                name: name,
+                email: email
+            };
+            
+            // Tambahkan ke daftar pengguna chat
+            chatUsers.push(newChatUser);
+            
+            // Simpan data
+            saveChatData();
+            
+            // Set sebagai pengguna chat saat ini
+            chatUser = newChatUser;
+            
+            // Tampilkan input chat
+            document.getElementById('chat-form').classList.add('d-none');
+            document.getElementById('chat-input').classList.remove('d-none');
+            
+            // Muat pesan
+            loadChatMessages(newChatUser.id);
+            
+            // Tambahkan pesan sambutan
+            const welcomeMessage = {
+                text: `Halo ${name}! Selamat datang di Raja Sayur Store. Ada yang bisa kami bantu?`,
+                sender: 'admin',
+                timestamp: new Date().toISOString(),
+                isAutoResponse: true
+            };
+            
+            if (!chatMessages[newChatUser.id]) {
+                chatMessages[newChatUser.id] = [];
+            }
+            
+            chatMessages[newChatUser.id].push(welcomeMessage);
+            
+            // Simpan data
+            saveChatData();
+            
+            // Tampilkan pesan
+            loadChatMessages(newChatUser.id);
+            
+            // Update notifikasi chat
+            updateChatNotification();
+        }
+
+        // Fungsi untuk memuat pesan chat
+        function loadChatMessages(userId) {
+            const chatBody = document.getElementById('chat-body');
+            chatBody.innerHTML = '';
+            
+            if (!chatMessages[userId]) {
+                chatMessages[userId] = [];
+            }
+            
+            const messages = chatMessages[userId];
+            
+            messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${message.sender === 'admin' ? 'admin' : 'user'}`;
+                
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.className = 'chat-bubble';
+                bubbleDiv.textContent = message.text;
+                
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'chat-time';
+                timeDiv.textContent = new Date(message.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                
+                messageDiv.appendChild(bubbleDiv);
+                messageDiv.appendChild(timeDiv);
+                
+                chatBody.appendChild(messageDiv);
+            });
+            
+            // Scroll ke bawah
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // Fungsi untuk mengirim pesan
+        function sendMessage() {
+            const messageInput = document.getElementById('chat-message');
+            const messageText = messageInput.value.trim();
+            
+            if (!messageText || !chatUser) return;
+            
+            // Buat pesan baru
+            const message = {
+                text: messageText,
+                sender: 'user',
+                timestamp: new Date().toISOString(),
+                isAutoResponse: false
+            };
+            
+            // Tambahkan ke pesan
+            if (!chatMessages[chatUser.id]) {
+                chatMessages[chatUser.id] = [];
+            }
+            
+            chatMessages[chatUser.id].push(message);
+            
+            // Simpan data
+            saveChatData();
+            
+            // Kosongkan input
+            messageInput.value = '';
+            
+            // Tampilkan pesan
+            loadChatMessages(chatUser.id);
+            
+            // Update status typing
+            updateTypingStatus(chatUser.id, false);
+            
+            // Cek apakah admin online
+            if (adminOnline) {
+                // Tampilkan indikator admin sedang mengetik
+                showTypingIndicator(chatUser.id, true);
+                
+                // Simulasikan admin sedang mengetik
+                setTimeout(() => {
+                    showTypingIndicator(chatUser.id, false);
+                    
+                    // Kirim auto-response
+                    sendAutoResponse(chatUser.id);
+                }, 2000);
+            } else {
+                // Kirim auto-response bahwa admin sedang offline
+                const offlineMessage = {
+                    text: "Terima kasih telah menghubungi kami. Saat ini admin sedang offline. Kami akan merespons pesan Anda secepatnya.",
+                    sender: 'admin',
+                    timestamp: new Date().toISOString(),
+                    isAutoResponse: true
+                };
+                
+                chatMessages[chatUser.id].push(offlineMessage);
+                saveChatData();
+                loadChatMessages(chatUser.id);
+            }
+            
+            // Update notifikasi chat
+            updateChatNotification();
+        }
+
+        // Fungsi untuk menangani keypress di input chat
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            } else {
+                // Update status typing
+                if (chatUser) {
+                    updateTypingStatus(chatUser.id, true);
+                    
+                    // Set timeout untuk menghapus status typing setelah 5 detik tidak ada aktivitas
+                    clearTimeout(window.typingTimeout);
+                    window.typingTimeout = setTimeout(() => {
+                        updateTypingStatus(chatUser.id, false);
+                    }, 5000);
+                }
+            }
+        }
+
+        // Fungsi untuk memeriksa pesan baru
+        function checkNewMessages() {
+            if (chatUser && chatMessages[chatUser.id]) {
+                const messages = chatMessages[chatUser.id];
+                const lastMessage = messages[messages.length - 1];
+                
+                // Jika ada pesan baru dari admin dan bukan auto-response
+                if (lastMessage && lastMessage.sender === 'admin' && !lastMessage.isAutoResponse && !lastMessage.read) {
+                    // Tandai sebagai sudah dibaca
+                    lastMessage.read = true;
+                    
+                    // Simpan data
+                    saveChatData();
+                    
+                    // Tampilkan pesan
+                    loadChatMessages(chatUser.id);
+                }
+            }
+        }
+
+        // Fungsi untuk memperbarui notifikasi chat
+        function updateChatNotification() {
+            let unreadCount = 0;
+            
+            // Hitung jumlah pesan yang belum dibaca
+            Object.keys(chatMessages).forEach(userId => {
+                if (chatMessages[userId]) {
+                    unreadCount += chatMessages[userId].filter(msg => msg.sender === 'user' && !msg.read).length;
+                }
+            });
+            
+            // Update notifikasi di menu admin
+            const adminChatNotification = document.getElementById('admin-chat-notification');
+            if (adminChatNotification) {
+                if (unreadCount > 0) {
+                    adminChatNotification.textContent = unreadCount;
+                    adminChatNotification.style.display = 'inline-block';
+                } else {
+                    adminChatNotification.style.display = 'none';
+                }
+            }
+            
+            // Update notifikasi di chat widget
+            const chatNotification = document.querySelector('.chat-notification');
+            if (chatNotification) {
+                if (unreadCount > 0) {
+                    chatNotification.textContent = unreadCount;
+                    chatNotification.style.display = 'flex';
+                } else {
+                    chatNotification.style.display = 'none';
+                }
+            }
+        }
+
+        // Fungsi untuk menampilkan halaman login admin
+        function showAdminLogin() {
+            // Buat modal untuk login admin
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'adminLoginModal';
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Login Admin</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="admin-email" value="admin@rajasayur.com" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="admin-password" value="admin123" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Login</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Tampilkan modal
+            const adminLoginModal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
+            adminLoginModal.show();
+            
+            // Hapus modal setelah ditutup
+            document.getElementById('adminLoginModal').addEventListener('hidden.bs.modal', function() {
+                document.body.removeChild(modal);
+            });
+        }
+
+        // Fungsi untuk menangani login admin
+        function handleAdminLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-password').value;
+            
+            // Cari admin berdasarkan email dan password
+            const admin = users.find(u => u.email === email && u.password === password && u.isAdmin);
+            
+            if (admin) {
+                currentUser = admin;
+                localStorage.setItem('currentUser', JSON.stringify(admin));
+                
+                // Tutup modal
+                const adminLoginModal = bootstrap.Modal.getInstance(document.getElementById('adminLoginModal'));
+                adminLoginModal.hide();
+                
+                // Tampilkan panel admin
+                showAdminPanel();
+                
+                // Update status admin
+                updateAdminStatus();
+            } else {
+                showNotification('Email atau password admin salah!', 'error');
+            }
+        }
+
+        // Fungsi untuk logout admin
+        function logoutAdmin() {
+            if (confirm('Apakah Anda yakin ingin logout?')) {
+                currentUser = null;
+                localStorage.removeItem('currentUser');
+                
+                // Update status admin
+                adminOnline = false;
+                if (firebaseAvailable && db) {
+                    setDoc(doc(db, 'adminStatus', 'status'), {
+                        online: false,
+                        lastActivity: new Date().getTime()
+                    }).catch(error => {
+                        console.error('Error updating admin status on logout:', error);
+                    });
+                }
+                
+                // Tampilkan halaman publik
+                document.getElementById('admin-panel').style.display = 'none';
+                document.getElementById('public-view').style.display = 'block';
+                
+                // Tampilkan halaman beranda
+                showPage('home');
+                
+                // Tampilkan notifikasi
+                showNotification('Anda telah berhasil logout!');
+            }
+        }
+    </script>
+</body>
+</html>
