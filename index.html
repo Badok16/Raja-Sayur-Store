@@ -778,6 +778,45 @@
             color: white;
         }
 
+        /* Quantity Control */
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .quantity-control button {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 1px solid #ddd;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .quantity-control input {
+            width: 50px;
+            text-align: center;
+            border: none;
+            border-top: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+            height: 30px;
+        }
+
+        /* Product Detail */
+        .product-detail-img {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+
+        .product-detail-info {
+            padding: 20px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .hero h1 {
@@ -1541,6 +1580,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    
     <script>
         // Inisialisasi Firebase
         const firebaseConfig = {
@@ -1554,12 +1594,34 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        
-        // Variabel global untuk Firebase
+        let app;
         let db;
         let auth;
         let firebaseAvailable = false;
+
+        // Fungsi untuk menginisialisasi Firebase
+        function initializeFirebase() {
+            try {
+                app = firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+                firebaseAvailable = true;
+                console.log("Firebase initialized successfully");
+                return true;
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                firebaseAvailable = false;
+                return false;
+            }
+        }
+
+        // Coba inisialisasi Firebase
+        initializeFirebase();
+
+        // Variabel global untuk Firebase
+        window.db = db;
+        window.auth = auth;
+        window.firebaseAvailable = firebaseAvailable;
 
         // Data produk
         const products = [
@@ -4075,7 +4137,7 @@
             }
         }
 
-                // Fungsi untuk memperbarui notifikasi chat
+        // Fungsi untuk memperbarui notifikasi chat
         function updateChatNotification() {
             let unreadCount = 0;
             
