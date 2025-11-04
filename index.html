@@ -1559,16 +1559,18 @@
         const auth = firebase.auth();
         
         // Buat variabel global
-        window.db = db;
-        window.auth = auth;
-        window.firebaseAvailable = true;
-        
-        console.log("Firebase initialized successfully");
+        if (window.db && window.auth) {
+    db = window.db;
+    auth = window.auth;
+    firebaseAvailable = window.firebaseAvailable;
+    console.log("Firebase loaded successfully");
+	else {
+    console.error("Firebase not loaded");
+    firebaseAvailable = false;}
     </script>
-    
     <script>
         // Variabel global untuk Firebase
-       let firebaseAvailable = false;
+        let firebaseAvailable = false;
 
         // Variabel global untuk status admin
         let adminOnline = false;
@@ -2211,7 +2213,103 @@
             // Update admin chat notification
             updateChatNotification();
         }
+// Fungsi-fungsi krusial yang harus tersedia segera
+function showPage(pageId) {
+    // Sembunyikan semua halaman
+    const pages = document.querySelectorAll('section');
+    pages.forEach(page => {
+        page.classList.add('d-none');
+    });
+    
+    // Tampilkan halaman yang dipilih
+    const selectedPage = document.getElementById(`${pageId}-page`);
+    if (selectedPage) {
+        selectedPage.classList.remove('d-none');
+    } else if (pageId === 'home') {
+        document.getElementById('home-page').classList.remove('d-none');
+    }
+    
+    // Jika halaman produk, tampilkan semua produk
+    if (pageId === 'products') {
+        displayAllProducts();
+    }
+    
+    // Jika halaman keranjang, tampilkan isi keranjang
+    if (pageId === 'cart') {
+        displayCart();
+    }
+    
+    // Jika halaman pesanan, tampilkan daftar pesanan
+    if (pageId === 'orders') {
+        displayOrders();
+    }
+}
 
+function showAdminLogin() {
+    // Buat modal untuk login admin
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'adminLoginModal';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Login Admin</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="admin-email" value="admin@rajasayur.com" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" id="admin-password" value="admin123" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Tampilkan modal
+    const adminLoginModal = new bootstrap.Modal(document.getElementById('adminLoginModal'));
+    adminLoginModal.show();
+    
+    // Hapus modal setelah ditutup
+    document.getElementById('adminLoginModal').addEventListener('hidden.bs.modal', function() {
+        document.body.removeChild(modal);
+    });
+}
+
+function handleAdminLogin(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('admin-email').value;
+    const password = document.getElementById('admin-password').value;
+    
+    // Cari admin berdasarkan email dan password
+    const admin = users.find(u => u.email === email && u.password === password && u.isAdmin);
+    
+    if (admin) {
+        currentUser = admin;
+        localStorage.setItem('currentUser', JSON.stringify(admin));
+        
+        // Tutup modal
+        const adminLoginModal = bootstrap.Modal.getInstance(document.getElementById('adminLoginModal'));
+        adminLoginModal.hide();
+        
+        // Tampilkan panel admin
+        showAdminPanel();
+        
+        // Update status admin
+        updateAdminStatus();
+     else {
+        showNotification('Email atau password admin salah!', 'error');   }
         // Inisialisasi halaman
         document.addEventListener('DOMContentLoaded', function() {
             // Tampilkan produk unggulan di halaman beranda
@@ -4178,4 +4276,3 @@
     </script>
 </body>
 </html>
-
