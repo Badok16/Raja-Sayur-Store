@@ -1763,6 +1763,11 @@
             }
         }
         
+        // Fungsi untuk mendapatkan data pengguna
+        function getUsers() {
+            return users;
+        }
+        
         // Deklarasi fungsi global yang bisa diakses dari HTML
         window.showPage = function(pageId) {
             // Sembunyikan semua halaman
@@ -2764,12 +2769,18 @@
             const email = document.getElementById('admin-email').value;
             const password = document.getElementById('admin-password').value;
             
+            // Ambil data pengguna dari localStorage atau gunakan data global
+            let usersData = getUsers();
+            
             // Cari admin berdasarkan email dan password
-            const admin = users.find(u => u.email === email && u.password === password && u.isAdmin);
+            const admin = usersData.find(u => u.email === email && u.password === password && u.isAdmin);
             
             if (admin) {
                 currentUser = admin;
                 localStorage.setItem('currentUser', JSON.stringify(admin));
+                
+                // Update global users variable
+                users = usersData;
                 
                 // Tutup modal
                 const adminLoginModal = bootstrap.Modal.getInstance(document.getElementById('adminLoginModal'));
