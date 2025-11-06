@@ -1599,6 +1599,8 @@
         let firebaseAvailable = false;
         let db = null;
         let auth = null;
+        let lastOrderUpdate = 0;
+        let lastChatUpdate = 0;
         
         // Inisialisasi data default
         function initializeDefaultData() {
@@ -1764,6 +1766,39 @@
                     currentUser = null;
                 }
             }
+            
+            // Muat timestamp terakhir update
+            const savedLastOrderUpdate = localStorage.getItem('lastOrderUpdate');
+            if (savedLastOrderUpdate) {
+                try {
+                    lastOrderUpdate = parseInt(savedLastOrderUpdate);
+                } catch (error) {
+                    console.error('Error parsing last order update from localStorage:', error);
+                    lastOrderUpdate = 0;
+                }
+            }
+            
+            const savedLastChatUpdate = localStorage.getItem('lastChatUpdate');
+            if (savedLastChatUpdate) {
+                try {
+                    lastChatUpdate = parseInt(savedLastChatUpdate);
+                } catch (error) {
+                    console.error('Error parsing last chat update from localStorage:', error);
+                    lastChatUpdate = 0;
+                }
+            }
+        }
+        
+        // Fungsi untuk menyimpan data ke localStorage
+        function saveDataToLocalStorage() {
+            localStorage.setItem('products', JSON.stringify(products));
+            localStorage.setItem('users', JSON.stringify(users));
+            localStorage.setItem('cart', JSON.stringify(cart));
+            localStorage.setItem('orders', JSON.stringify(orders));
+            localStorage.setItem('chatUsers', JSON.stringify(chatUsers));
+            localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+            localStorage.setItem('lastOrderUpdate', lastOrderUpdate.toString());
+            localStorage.setItem('lastChatUpdate', lastChatUpdate.toString());
         }
         
         // Fungsi untuk mendapatkan data pengguna
@@ -1960,7 +1995,7 @@
                 }
                 
                 // Simpan ke localStorage
-                localStorage.setItem('cart', JSON.stringify(cart));
+                saveDataToLocalStorage();
                 
                 updateCartCount();
                 showNotification('Produk berhasil ditambahkan ke keranjang!');
@@ -1982,7 +2017,7 @@
                     removeFromCart(productId);
                 } else {
                     // Simpan ke localStorage
-                    localStorage.setItem('cart', JSON.stringify(cart));
+                    saveDataToLocalStorage();
                     updateCartCount();
                     displayCart();
                 }
@@ -1993,7 +2028,7 @@
             cart = cart.filter(item => item.id !== productId);
             
             // Simpan ke localStorage
-            localStorage.setItem('cart', JSON.stringify(cart));
+            saveDataToLocalStorage();
             
             updateCartCount();
             displayCart();
@@ -2051,27 +2086,15 @@
             // Tambahkan ke daftar pesanan
             orders.push(order);
             
-            // Simpan data ke localStorage
-            localStorage.setItem('orders', JSON.stringify(orders));
+            // Update timestamp untuk sinkronisasi
+            lastOrderUpdate = Date.now();
             
-            // Simpan data ke Firebase jika tersedia
-            if (firebaseAvailable && db) {
-                try {
-                    db.collection('orders').doc(order.id.toString()).set(order)
-                        .then(() => {
-                            console.log("Order successfully saved to Firebase");
-                        })
-                        .catch((error) => {
-                            console.error("Error saving order to Firebase: ", error);
-                        });
-                } catch (error) {
-                    console.error('Error saving order to Firebase:', error);
-                }
-            }
+            // Simpan data ke localStorage
+            saveDataToLocalStorage();
             
             // Kosongkan keranjang
             cart = [];
-            localStorage.setItem('cart', JSON.stringify(cart));
+            saveDataToLocalStorage();
             
             updateCartCount();
             
@@ -2189,7 +2212,7 @@
             };
             
             users.push(newUser);
-            localStorage.setItem('users', JSON.stringify(users));
+            saveDataToLocalStorage();
             
             showNotification('Registrasi berhasil! Silakan login.');
             showPage('login');
@@ -2317,7 +2340,7 @@
                 products = products.filter(product => product.id !== productId);
                 
                 // Simpan data
-                localStorage.setItem('products', JSON.stringify(products));
+                saveDataToLocalStorage();
                 
                 // Perbarui tampilan
                 displayAdminProducts();
@@ -2352,7 +2375,7 @@
             product.description = description;
             
             // Simpan data
-            localStorage.setItem('products', JSON.stringify(products));
+            saveDataToLocalStorage();
             
             // Tutup modal
             const productModal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
@@ -2505,23 +2528,11 @@
                 note: statusNote || `Status diubah menjadi ${newStatus === 'processing' ? 'Sedang Diproses' : newStatus === 'shipping' ? 'Sedang Dikirim' : 'Selesai'}`
             });
             
-            // Simpan data ke localStorage
-            localStorage.setItem('orders', JSON.stringify(orders));
+            // Update timestamp untuk sinkronisasi
+            lastOrderUpdate = Date.now();
             
-            // Simpan data ke Firebase jika tersedia
-            if (firebaseAvailable && db) {
-                try {
-                    db.collection('orders').doc(orderId.toString()).set(order)
-                        .then(() => {
-                            console.log("Order status successfully updated in Firebase");
-                        })
-                        .catch((error) => {
-                            console.error("Error updating order status in Firebase: ", error);
-                        });
-                } catch (error) {
-                    console.error('Error updating order status in Firebase:', error);
-                }
-            }
+            // Simpan data ke localStorage
+            saveDataToLocalStorage();
             
             // Tutup modal
             const statusModal = bootstrap.Modal.getInstance(document.getElementById('updateStatusModal'));
@@ -2595,117 +2606,13 @@
                 users = users.filter(user => user.id !== customerId);
                 
                 // Simpan data
-                localStorage.setItem('users', JSON.stringify(users));
+                saveDataToLocalStorage();
                 
                 // Perbarui tampilan
                 displayAdminCustomers();
                 
                 // Tampilkan notifikasi
                 showNotification('Pelanggan berhasil dihapus!');
-            }
-        };
-
-        window.selectChatUser = function(userId) {
-            currentChatUser = chatUsers.find(user => user.id === userId);
-            
-            if (currentChatUser) {
-                // Update header chat
-                document.getElementById('admin-chat-user-name').textContent = currentChatUser.name;
-                
-                // Tandai semua pesan sebagai sudah dibaca
-                if (chatMessages[currentChatUser.id]) {
-                    chatMessages[currentChatUser.id].forEach(msg => {
-                        if (msg.sender === 'user') {
-                            msg.read = true;
-                        }
-                    });
-                    
-                    // Simpan data ke localStorage
-                    localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
-                    
-                    // Simpan data ke Firebase jika tersedia
-                    if (firebaseAvailable && db) {
-                        try {
-                            db.collection('chatMessages').doc(currentChatUser.id.toString()).set({
-                                messages: chatMessages[currentChatUser.id]
-                            }).catch(error => {
-                                console.error('Error updating chat messages in Firebase:', error);
-                            });
-                        } catch (error) {
-                            console.error('Error updating chat messages in Firebase:', error);
-                        }
-                    }
-                }
-                
-                // Tampilkan pesan
-                displayAdminChatMessages();
-                
-                // Update tampilan daftar pengguna
-                displayAdminChat();
-            }
-        };
-
-        window.sendAdminMessage = function() {
-            const messageInput = document.getElementById('admin-chat-message');
-            const messageText = messageInput.value.trim();
-            
-            if (!messageText || !currentChatUser) return;
-            
-            // Buat pesan baru
-            const message = {
-                text: messageText,
-                sender: 'admin',
-                timestamp: new Date().toISOString(),
-                read: false
-            };
-            
-            // Tambahkan ke pesan
-            if (!chatMessages[currentChatUser.id]) {
-                chatMessages[currentChatUser.id] = [];
-            }
-            
-            chatMessages[currentChatUser.id].push(message);
-            
-            // Simpan data ke localStorage
-            localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
-            
-            // Simpan data ke Firebase jika tersedia
-            if (firebaseAvailable && db) {
-                try {
-                    db.collection('chatMessages').doc(currentChatUser.id.toString()).set({
-                        messages: chatMessages[currentChatUser.id]
-                    }).catch(error => {
-                        console.error('Error saving chat message to Firebase:', error);
-                    });
-                } catch (error) {
-                    console.error('Error saving chat message to Firebase:', error);
-                }
-            }
-            
-            // Kosongkan input
-            messageInput.value = '';
-            
-            // Tampilkan pesan
-            displayAdminChatMessages();
-            
-            // Update status typing
-            updateTypingStatus(currentChatUser.id, false);
-        };
-
-        window.handleAdminChatKeyPress = function(event) {
-            if (event.key === 'Enter') {
-                sendAdminMessage();
-            } else {
-                // Update status typing
-                if (currentChatUser) {
-                    updateTypingStatus(currentChatUser.id, true);
-                    
-                    // Set timeout untuk menghapus status typing setelah 5 detik tidak ada aktivitas
-                    clearTimeout(window.typingTimeout);
-                    window.typingTimeout = setTimeout(() => {
-                        updateTypingStatus(currentChatUser.id, false);
-                    }, 5000);
-                }
             }
         };
 
@@ -2809,7 +2716,7 @@
             products.push(newProduct);
             
             // Simpan data
-            localStorage.setItem('products', JSON.stringify(products));
+            saveDataToLocalStorage();
             
             // Tutup modal
             const productModal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
@@ -2862,14 +2769,6 @@
                 
                 // Update status admin
                 adminOnline = false;
-                if (firebaseAvailable && db) {
-                    db.collection('adminStatus').doc('status').set({
-                        online: false,
-                        lastActivity: new Date().getTime()
-                    }).catch(error => {
-                        console.error('Error updating admin status on logout:', error);
-                    });
-                }
                 
                 // Tampilkan halaman publik
                 document.getElementById('admin-panel').style.display = 'none';
@@ -2917,23 +2816,11 @@
             // Tambahkan ke daftar pengguna chat
             chatUsers.push(newChatUser);
             
-            // Simpan data ke localStorage
-            localStorage.setItem('chatUsers', JSON.stringify(chatUsers));
+            // Update timestamp untuk sinkronisasi
+            lastChatUpdate = Date.now();
             
-            // Simpan data ke Firebase jika tersedia
-            if (firebaseAvailable && db) {
-                try {
-                    db.collection('chatUsers').doc(newChatUser.id.toString()).set(newChatUser)
-                        .then(() => {
-                            console.log("Chat user successfully saved to Firebase");
-                        })
-                        .catch((error) => {
-                            console.error("Error saving chat user to Firebase: ", error);
-                        });
-                } catch (error) {
-                    console.error('Error saving chat user to Firebase:', error);
-                }
-            }
+            // Simpan data ke localStorage
+            saveDataToLocalStorage();
             
             // Set sebagai pengguna chat saat ini
             chatUser = newChatUser;
@@ -2960,20 +2847,7 @@
             chatMessages[newChatUser.id].push(welcomeMessage);
             
             // Simpan data ke localStorage
-            localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
-            
-            // Simpan data ke Firebase jika tersedia
-            if (firebaseAvailable && db) {
-                try {
-                    db.collection('chatMessages').doc(newChatUser.id.toString()).set({
-                        messages: chatMessages[newChatUser.id]
-                    }).catch(error => {
-                        console.error('Error saving welcome message to Firebase:', error);
-                    });
-                } catch (error) {
-                    console.error('Error saving welcome message to Firebase:', error);
-                }
-            }
+            saveDataToLocalStorage();
             
             // Tampilkan pesan
             loadChatMessages(newChatUser.id);
@@ -3003,21 +2877,11 @@
             
             chatMessages[chatUser.id].push(message);
             
-            // Simpan data ke localStorage
-            localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+            // Update timestamp untuk sinkronisasi
+            lastChatUpdate = Date.now();
             
-            // Simpan data ke Firebase jika tersedia
-            if (firebaseAvailable && db) {
-                try {
-                    db.collection('chatMessages').doc(chatUser.id.toString()).set({
-                        messages: chatMessages[chatUser.id]
-                    }).catch(error => {
-                        console.error('Error saving chat message to Firebase:', error);
-                    });
-                } catch (error) {
-                    console.error('Error saving chat message to Firebase:', error);
-                }
-            }
+            // Simpan data ke localStorage
+            saveDataToLocalStorage();
             
             // Kosongkan input
             messageInput.value = '';
@@ -3050,21 +2914,7 @@
                 };
                 
                 chatMessages[chatUser.id].push(offlineMessage);
-                localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
-                
-                // Simpan data ke Firebase jika tersedia
-                if (firebaseAvailable && db) {
-                    try {
-                        db.collection('chatMessages').doc(chatUser.id.toString()).set({
-                            messages: chatMessages[chatUser.id]
-                        }).catch(error => {
-                            console.error('Error saving offline message to Firebase:', error);
-                        });
-                    } catch (error) {
-                        console.error('Error saving offline message to Firebase:', error);
-                    }
-                }
-                
+                saveDataToLocalStorage();
                 loadChatMessages(chatUser.id);
             }
             
@@ -3084,6 +2934,87 @@
                     clearTimeout(window.typingTimeout);
                     window.typingTimeout = setTimeout(() => {
                         updateTypingStatus(chatUser.id, false);
+                    }, 5000);
+                }
+            }
+        };
+
+        window.selectChatUser = function(userId) {
+            currentChatUser = chatUsers.find(user => user.id === userId);
+            
+            if (currentChatUser) {
+                // Update header chat
+                document.getElementById('admin-chat-user-name').textContent = currentChatUser.name;
+                
+                // Tandai semua pesan sebagai sudah dibaca
+                if (chatMessages[currentChatUser.id]) {
+                    chatMessages[currentChatUser.id].forEach(msg => {
+                        if (msg.sender === 'user') {
+                            msg.read = true;
+                        }
+                    });
+                    
+                    // Simpan data ke localStorage
+                    saveDataToLocalStorage();
+                }
+                
+                // Tampilkan pesan
+                displayAdminChatMessages();
+                
+                // Update tampilan daftar pengguna
+                displayAdminChat();
+            }
+        };
+
+        window.sendAdminMessage = function() {
+            const messageInput = document.getElementById('admin-chat-message');
+            const messageText = messageInput.value.trim();
+            
+            if (!messageText || !currentChatUser) return;
+            
+            // Buat pesan baru
+            const message = {
+                text: messageText,
+                sender: 'admin',
+                timestamp: new Date().toISOString(),
+                read: false
+            };
+            
+            // Tambahkan ke pesan
+            if (!chatMessages[currentChatUser.id]) {
+                chatMessages[currentChatUser.id] = [];
+            }
+            
+            chatMessages[currentChatUser.id].push(message);
+            
+            // Update timestamp untuk sinkronisasi
+            lastChatUpdate = Date.now();
+            
+            // Simpan data ke localStorage
+            saveDataToLocalStorage();
+            
+            // Kosongkan input
+            messageInput.value = '';
+            
+            // Tampilkan pesan
+            displayAdminChatMessages();
+            
+            // Update status typing
+            updateTypingStatus(currentChatUser.id, false);
+        };
+
+        window.handleAdminChatKeyPress = function(event) {
+            if (event.key === 'Enter') {
+                sendAdminMessage();
+            } else {
+                // Update status typing
+                if (currentChatUser) {
+                    updateTypingStatus(currentChatUser.id, true);
+                    
+                    // Set timeout untuk menghapus status typing setelah 5 detik tidak ada aktivitas
+                    clearTimeout(window.typingTimeout);
+                    window.typingTimeout = setTimeout(() => {
+                        updateTypingStatus(currentChatUser.id, false);
                     }, 5000);
                 }
             }
@@ -3179,7 +3110,7 @@
             }
             
             // Simpan ke localStorage
-            localStorage.setItem('cart', JSON.stringify(cart));
+            saveDataToLocalStorage();
             
             updateCartCount();
             
@@ -3321,22 +3252,12 @@
                     timestamp: new Date().toISOString(),
                     note: 'Pesanan sedang diproses'
                 });
-                localStorage.setItem('orders', JSON.stringify(orders));
                 
-                // Simpan data ke Firebase jika tersedia
-                if (firebaseAvailable && db) {
-                    try {
-                        db.collection('orders').doc(orderId.toString()).set(order)
-                            .then(() => {
-                                console.log("Order status updated to processing in Firebase");
-                            })
-                            .catch((error) => {
-                                console.error("Error updating order status in Firebase: ", error);
-                            });
-                    } catch (error) {
-                        console.error('Error updating order status in Firebase:', error);
-                    }
-                }
+                // Update timestamp untuk sinkronisasi
+                lastOrderUpdate = Date.now();
+                
+                // Simpan data ke localStorage
+                saveDataToLocalStorage();
             }, 5000);
             
             setTimeout(() => {
@@ -3346,22 +3267,12 @@
                     timestamp: new Date().toISOString(),
                     note: 'Pesanan sedang dikirim'
                 });
-                localStorage.setItem('orders', JSON.stringify(orders));
                 
-                // Simpan data ke Firebase jika tersedia
-                if (firebaseAvailable && db) {
-                    try {
-                        db.collection('orders').doc(orderId.toString()).set(order)
-                            .then(() => {
-                                console.log("Order status updated to shipping in Firebase");
-                            })
-                            .catch((error) => {
-                                console.error("Error updating order status in Firebase: ", error);
-                            });
-                    } catch (error) {
-                        console.error('Error updating order status in Firebase:', error);
-                    }
-                }
+                // Update timestamp untuk sinkronisasi
+                lastOrderUpdate = Date.now();
+                
+                // Simpan data ke localStorage
+                saveDataToLocalStorage();
             }, 10000);
             
             setTimeout(() => {
@@ -3371,22 +3282,12 @@
                     timestamp: new Date().toISOString(),
                     note: 'Pesanan selesai'
                 });
-                localStorage.setItem('orders', JSON.stringify(orders));
                 
-                // Simpan data ke Firebase jika tersedia
-                if (firebaseAvailable && db) {
-                    try {
-                        db.collection('orders').doc(orderId.toString()).set(order)
-                            .then(() => {
-                                console.log("Order status updated to completed in Firebase");
-                            })
-                            .catch((error) => {
-                                console.error("Error updating order status in Firebase: ", error);
-                            });
-                    } catch (error) {
-                        console.error('Error updating order status in Firebase:', error);
-                    }
-                }
+                // Update timestamp untuk sinkronisasi
+                lastOrderUpdate = Date.now();
+                
+                // Simpan data ke localStorage
+                saveDataToLocalStorage();
             }, 15000);
         }
 
@@ -3773,55 +3674,19 @@
 
         // Fungsi untuk memperbarui status admin
         function updateAdminStatus() {
-            if (!firebaseAvailable || !db) return;
-            
-            try {
-                // Update status admin menjadi online
-                adminOnline = true;
-                lastAdminActivity = new Date().getTime();
-                
-                // Simpan status admin ke Firebase
-                db.collection('adminStatus').doc('status').set({
-                    online: adminOnline,
-                    lastActivity: lastAdminActivity
-                }).catch(error => {
-                    console.error('Error updating admin status:', error);
-                });
-                
-                console.log("Admin status updated to online");
-            } catch (error) {
-                console.error('Error updating admin status:', error);
-            }
+            // Update status admin menjadi online
+            adminOnline = true;
+            lastAdminActivity = new Date().getTime();
         }
 
         // Fungsi untuk mengecek status admin
         function checkAdminStatus() {
-            if (!firebaseAvailable || !db) return;
+            // Cek apakah admin masih aktif (aktif dalam 5 menit terakhir)
+            const now = new Date().getTime();
+            const fiveMinutes = 5 * 60 * 1000;
             
-            try {
-                // Ambil status admin dari Firebase
-                db.collection('adminStatus').doc('status').get().then(doc => {
-                    if (doc.exists) {
-                        const data = doc.data();
-                        adminOnline = data.online || false;
-                        lastAdminActivity = data.lastActivity || 0;
-                        
-                        // Cek apakah admin masih aktif (aktif dalam 5 menit terakhir)
-                        const now = new Date().getTime();
-                        const fiveMinutes = 5 * 60 * 1000;
-                        
-                        if (now - lastAdminActivity > fiveMinutes) {
-                            adminOnline = false;
-                        }
-                        
-                        // Update UI
-                        updateAdminStatusUI();
-                    }
-                }).catch(error => {
-                    console.error('Error checking admin status:', error);
-                });
-            } catch (error) {
-                console.error('Error checking admin status:', error);
+            if (now - lastAdminActivity > fiveMinutes) {
+                adminOnline = false;
             }
         }
 
@@ -3848,8 +3713,8 @@
             if (chatUser && chatUser.id === userId) {
                 const chatBody = document.getElementById('chat-body');
                 
-                // Cek apakah sudah ada indikator mengetik
-                let typingIndicator = document.getElementById('typing-indicator');
+                // Cek apakah sudah ada indikator mengetIK
+                            let typingIndicator = document.getElementById('typing-indicator');
                 
                 if (isTyping && !typingIndicator) {
                     // Buat indikator mengetik
@@ -3906,19 +3771,7 @@
 
         // Fungsi untuk memperbarui status typing
         function updateTypingStatus(userId, isTyping) {
-            if (!firebaseAvailable || !db) return;
-            
-            try {
-                // Simpan status typing ke Firebase
-                db.collection('typingStatus').doc(userId.toString()).set({
-                    isTyping: isTyping,
-                    timestamp: new Date().getTime()
-                }).catch(error => {
-                    console.error('Error updating typing status:', error);
-                });
-            } catch (error) {
-                console.error('Error updating typing status:', error);
-            }
+            typingIndicators[userId] = isTyping;
         }
 
         // Fungsi untuk mengecek apakah admin sedang aktif
@@ -3953,20 +3806,7 @@
             chatMessages[userId].push(message);
             
             // Save data to localStorage
-            localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
-            
-            // Save data to Firebase if available
-            if (firebaseAvailable && db) {
-                try {
-                    db.collection('chatMessages').doc(userId.toString()).set({
-                        messages: chatMessages[userId]
-                    }).catch(error => {
-                        console.error('Error saving auto-response to Firebase:', error);
-                    });
-                } catch (error) {
-                    console.error('Error saving auto-response to Firebase:', error);
-                }
-            }
+            saveDataToLocalStorage();
             
             // Reload messages if this user is currently active
             if (chatUser && chatUser.id === userId) {
@@ -4200,10 +4040,52 @@
                     lastMessage.read = true;
                     
                     // Simpan data
-                    localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+                    saveDataToLocalStorage();
                     
                     // Tampilkan pesan
                     loadChatMessages(chatUser.id);
+                }
+            }
+        }
+
+        // Fungsi untuk sinkronisasi data antara admin dan user
+        function syncData() {
+            // Cek apakah ada update pesanan dari admin
+            const savedLastOrderUpdate = localStorage.getItem('lastOrderUpdate');
+            if (savedLastOrderUpdate) {
+                const serverLastOrderUpdate = parseInt(savedLastOrderUpdate);
+                if (serverLastOrderUpdate > lastOrderUpdate) {
+                    // Ada update pesanan dari server, muat ulang data
+                    loadDataFromLocalStorage();
+                    
+                    // Update tampilan jika perlu
+                    if (document.getElementById('orders-page').classList.contains('d-none') === false) {
+                        displayOrders();
+                    }
+                    
+                    if (document.getElementById('order-detail-page').classList.contains('d-none') === false) {
+                        const orderId = parseInt(document.getElementById('order-detail-number').textContent.replace('#', ''));
+                        showOrderDetail(orderId);
+                    }
+                }
+            }
+            
+            // Cek apakah ada update chat dari admin
+            const savedLastChatUpdate = localStorage.getItem('lastChatUpdate');
+            if (savedLastChatUpdate) {
+                const serverLastChatUpdate = parseInt(savedLastChatUpdate);
+                if (serverLastChatUpdate > lastChatUpdate) {
+                    // Ada update chat dari server, muat ulang data
+                    loadDataFromLocalStorage();
+                    
+                    // Update tampilan jika perlu
+                    if (document.getElementById('admin-panel').style.display !== 'none') {
+                        displayAdminChat();
+                    }
+                    
+                    if (chatUser) {
+                        loadChatMessages(chatUser.id);
+                    }
                 }
             }
         }
@@ -4265,6 +4147,9 @@
             if ("Notification" in window && Notification.permission === "default") {
                 Notification.requestPermission();
             }
+            
+            // Sinkronisasi data setiap 5 detik
+            setInterval(syncData, 5000);
             
             // Cek pesan baru setiap 5 detik
             setInterval(checkNewMessages, 5000);
