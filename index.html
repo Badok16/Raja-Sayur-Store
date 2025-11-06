@@ -17,6 +17,7 @@
             --light-bg: #f8f9fc;
             --dark-bg: #343a40;
             --success-color: #28a745;
+            --whatsapp-color: #25D366;
         }
 
         * {
@@ -367,147 +368,42 @@
             font-size: 0.9rem;
         }
 
-        /* Chat Widget */
-        .chat-widget {
+        /* WhatsApp Chat Widget */
+        .whatsapp-widget {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 350px;
-            height: 500px;
+            width: 200px;
+            height: 50px;
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             z-index: 1000;
-            display: flex;
-            flex-direction: column;
+            cursor: pointer;
             transition: all 0.3s;
-            transform: translateY(calc(100% - 50px));
+            overflow: hidden;
         }
 
-        .chat-widget.opened {
-            transform: translateY(0);
+        .whatsapp-widget:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
         }
 
-        .chat-header {
-            background: var(--primary-color);
+        .whatsapp-header {
+            background: var(--whatsapp-color);
             color: white;
-            padding: 15px;
-            border-radius: 10px 10px 0 0;
+            padding: 12px 15px;
+            border-radius: 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-        }
-
-        .chat-body {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-message {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chat-message.admin {
-            align-items: flex-start;
-        }
-
-        .chat-message.user {
-            align-items: flex-end;
-        }
-
-        .chat-bubble {
-            max-width: 80%;
-            padding: 10px 15px;
-            border-radius: 18px;
-            margin-bottom: 5px;
-        }
-
-        .chat-message.admin .chat-bubble {
-            background: #f1f1f1;
-            color: #333;
-            border-top-left-radius: 0;
-        }
-
-        .chat-message.user .chat-bubble {
-            background: var(--primary-color);
-            color: white;
-            border-top-right-radius: 0;
-        }
-
-        .chat-time {
-            font-size: 0.7rem;
-            color: #999;
-        }
-
-        .chat-input {
-            padding: 15px;
-            border-top: 1px solid #eee;
-            display: flex;
-        }
-
-        .chat-input input {
-            flex: 1;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            padding: 10px 15px;
-            outline: none;
-        }
-
-        .chat-input button {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            margin-left: 10px;
-            cursor: pointer;
-        }
-
-        .chat-form {
-            padding: 15px;
-            background: #f9f9f9;
-            border-top: 1px solid #eee;
-        }
-
-        .chat-form input {
             width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
-            margin-bottom: 10px;
+            height: 100%;
         }
 
-        .chat-form button {
-            width: 100%;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 10px;
-            cursor: pointer;
-        }
-
-        .chat-notification {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            background: var(--danger-color);
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            font-weight: bold;
+        .whatsapp-header i {
+            font-size: 1.2rem;
         }
 
         /* Admin Panel */
@@ -837,9 +733,17 @@
                 margin-left: 0;
             }
             
-            .chat-widget {
-                width: 300px;
-                height: 400px;
+            .whatsapp-widget {
+                width: 180px;
+                height: 45px;
+            }
+            
+            .whatsapp-header {
+                padding: 10px 12px;
+            }
+            
+            .whatsapp-header i {
+                font-size: 1rem;
             }
         }
     </style>
@@ -1326,32 +1230,15 @@
         </footer>
     </div>
 
-    <!-- Chat Widget -->
-    <div class="chat-widget" id="chat-widget">
-        <div class="chat-header" onclick="toggleChat()">
+    <!-- WhatsApp Widget -->
+    <div class="whatsapp-widget" id="whatsapp-widget" onclick="redirectToWhatsApp()">
+        <div class="whatsapp-header">
             <div>
-                <i class="fas fa-comments me-2"></i>Live Chat
+                <i class="fab fa-whatsapp me-2"></i>Chat WhatsApp
             </div>
             <div>
-                <i class="fas fa-chevron-down" id="chat-toggle-icon"></i>
+                <i class="fas fa-chevron-right"></i>
             </div>
-        </div>
-        
-        <div class="chat-body" id="chat-body">
-            <!-- Chat messages will be loaded here -->
-        </div>
-        
-        <div class="chat-form" id="chat-form">
-            <input type="text" id="chat-name" placeholder="Nama Anda" required>
-            <input type="email" id="chat-email" placeholder="Email Anda" required>
-            <button onclick="startChat()">Mulai Chat</button>
-        </div>
-        
-        <div class="chat-input d-none" id="chat-input">
-            <input type="text" id="chat-message" placeholder="Ketik pesan..." onkeypress="handleChatKeyPress(event)">
-            <button onclick="sendMessage()">
-                <i class="fas fa-paper-plane"></i>
-            </button>
         </div>
     </div>
 
@@ -1561,7 +1448,7 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Telepon</label>
-                                <input type="tel" class="form-control" value="(021) 12345678">
+                                <input type="tel" class="form-control" value="087765288041">
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Alamat</label>
@@ -2782,19 +2669,17 @@
             }
         };
 
-        window.toggleChat = function() {
-            const chatWidget = document.getElementById('chat-widget');
-            const chatToggleIcon = document.getElementById('chat-toggle-icon');
+        // Fungsi untuk redirect ke WhatsApp
+        window.redirectToWhatsApp = function() {
+            // Nomor WhatsApp dalam format internasional (62 untuk Indonesia, tanpa 0 di depan)
+            const phoneNumber = "6287765288041"; 
+            const message = "Halo Raja Sayur Store, saya ingin bertanya tentang produk Anda.";
             
-            chatWidget.classList.toggle('opened');
+            // Buat URL WhatsApp
+            const whatsappURL = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
             
-            if (chatWidget.classList.contains('opened')) {
-                chatToggleIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
-                localStorage.setItem('chatOpened', 'true');
-            } else {
-                chatToggleIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
-                localStorage.setItem('chatOpened', 'false');
-            }
+            // Redirect ke WhatsApp
+            window.open(whatsappURL, '_blank');
         };
 
         window.startChat = function() {
@@ -3659,17 +3544,6 @@
                     adminChatNotification.style.display = 'none';
                 }
             }
-            
-            // Update notifikasi di chat widget
-            const chatNotification = document.querySelector('.chat-notification');
-            if (chatNotification) {
-                if (unreadCount > 0) {
-                    chatNotification.textContent = unreadCount;
-                    chatNotification.style.display = 'flex';
-                } else {
-                    chatNotification.style.display = 'none';
-                }
-            }
         }
 
         // Fungsi untuk memperbarui status admin
@@ -3713,8 +3587,8 @@
             if (chatUser && chatUser.id === userId) {
                 const chatBody = document.getElementById('chat-body');
                 
-                // Cek apakah sudah ada indikator mengetIK
-                            let typingIndicator = document.getElementById('typing-indicator');
+                // Cek apakah sudah ada indikator mengetik
+                let typingIndicator = document.getElementById('typing-indicator');
                 
                 if (isTyping && !typingIndicator) {
                     // Buat indikator mengetik
@@ -4131,13 +4005,6 @@
                         }
                     });
                 }
-            }
-            
-            // Cek apakah widget chat sudah dibuka sebelumnya
-            const chatOpened = localStorage.getItem('chatOpened');
-            if (chatOpened === 'true') {
-                document.getElementById('chat-widget').classList.add('opened');
-                document.getElementById('chat-toggle-icon').classList.replace('fa-chevron-down', 'fa-chevron-up');
             }
             
             // Update chat notification
